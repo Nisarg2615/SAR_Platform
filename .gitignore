@@ -25,3 +25,4 @@ mlruns/
 # IDE
 .vscode/
 .idea/
+.opencode/
