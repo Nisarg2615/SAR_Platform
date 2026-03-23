@@ -1,6 +1,6 @@
 # SAR Platform — Master Context File
 # Read this file at the start of EVERY OpenCode session, no exceptions.
-# Last updated: March 22 2026
+# Last updated: March 24 2026
 # This file is the single source of truth for the entire project.
 
 ---
@@ -24,18 +24,55 @@ INNER LOOP — 6 Agent SAR Pipeline:
 
 ---
 
+## LLM — FREE MiniMax-Text-2.5 via OpenCode (NO API KEY REQUIRED)
+
+  Model:       MiniMax-Text-2.5
+  Provider:    OpenCode built-in free model — NO external API key needed
+  Access:      Available automatically inside OpenCode sessions
+  Fallback:    Template-based generation in agents/agent3_narrative/fallback.py
+
+  HOW TO USE IN CODE:
+    In agents/agent3_narrative/minimax_client.py use the OpenCode LLM client.
+    OpenCode exposes a local LLM endpoint — treat it like an OpenAI-compatible API:
+
+    import openai
+    client = openai.AsyncOpenAI(
+        base_url="http://localhost:4000/v1",   # OpenCode local proxy port
+        api_key="opencode-free"               # placeholder, not validated
+    )
+    response = await client.chat.completions.create(
+        model="minimax/MiniMax-Text-2.5",
+        messages=[{"role": "system", "content": SYSTEM_PROMPT},
+                  {"role": "user",   "content": user_prompt}],
+        temperature=0.1,
+        max_tokens=800,
+    )
+
+  NEVER use the external Minimax REST API (https://api.minimax.chat/).
+  NEVER put a real MINIMAX_API_KEY in .env.local — it is not needed.
+  NEVER let an LLM failure crash the pipeline — always call the fallback.
+
+  Fallback template lives in: agents/agent3_narrative/fallback.py
+  It generates a valid SARNarrative from RiskAssessment fields with no LLM.
+
+---
+
 ## Team and Ownership — Do Not Touch Other People's Files
 
-  Person 1 (P1) — Backend + ML
+  Person 1 (Ricky) — Tech Lead · Backend + ML
     OWNS: main.py, agents/pipeline.py, agents/agent1_ingestion/,
           agents/agent2_risk/, prediction_engine/
 
-  Person 2 (P2) — AI + Graph
+  Person 2 (Nisarg) — AI Engineer · LLM + Graph
     OWNS: agents/agent3_narrative/, agents/agent4_compliance/,
           agents/agent5_audit/, graph/neo4j/
 
-  Person 3 (P3) — UI + Infra
-    OWNS: ui/, agents/agent6_review/, infra/, docker-compose.yml
+  Person 3 (Anshul) — Full-Stack · UI
+    OWNS: ui/, agents/agent6_review/
+
+  Person 4 (Ashwin) — Junior · Support & Tests (works under Ricky and Nisarg)
+    OWNS: infra/, docker-compose.yml, tests/unit/, tests/integration/
+    DOES NOT need to log into any external service — everything is local Docker
 
   SHARED (coordinate before editing):
     agents/shared/schemas.py — the Pydantic contracts between all agents
@@ -49,7 +86,7 @@ INNER LOOP — 6 Agent SAR Pipeline:
   Runtime:        Python 3.11
   API framework:  FastAPI 0.115.4 + uvicorn
   AI framework:   LangGraph 0.2.45 + LangChain 0.3.7
-  LLM:            Minimax API (MiniMax-Text-01 model)
+  LLM:            MiniMax-Text-2.5 (FREE via OpenCode — no API key)
   Data models:    Pydantic v2 (2.9.2) — BaseModel everywhere
   Graph DB:       Neo4j 5.14 Enterprise — bolt://localhost:7687
   Relational DB:  PostgreSQL 16 — localhost:5432 (not heavily used in demo)
@@ -137,16 +174,16 @@ Full schema in: agents/shared/schemas.py
   
   Graph order:
   START
-    → agent1_ingest          (P1 owns)
+    → agent1_ingest          (Ricky owns)
     → validate_gate_1        (checks state.normalized is not None)
-    → agent2_assess_risk     (P1 owns)
+    → agent2_assess_risk     (Ricky owns)
     → validate_gate_2        (checks state.risk_assessment is not None)
     → check_if_red           (conditional: GREEN → skip to END, RED/AMBER → continue)
-    → agent3_generate_narrative  (P2 owns)
+    → agent3_generate_narrative  (Nisarg owns)
     → validate_gate_3        (checks state.narrative is not None)
-    → agent4_check_compliance    (P2 owns)
+    → agent4_check_compliance    (Nisarg owns)
     → validate_gate_4        (checks state.compliance is not None)
-    → agent5_write_audit     (P2 owns)
+    → agent5_write_audit     (Nisarg owns)
     → END
   
   Agent 6 is NOT in the graph — it is triggered by human approval in the UI.
@@ -189,7 +226,7 @@ Full schema in: agents/shared/schemas.py
 
 ## FastAPI Endpoints — Complete List
 
-  P1 builds and owns all of these:
+  Ricky builds and owns all of these:
 
   POST   /submit-transaction          → scores risk, creates case, returns SARCase
   GET    /cases                       → returns list of all cases
@@ -208,24 +245,46 @@ Full schema in: agents/shared/schemas.py
 
 ---
 
-## Minimax API — How to Call It
+## MiniMax-Text-2.5 — How to Call It (OpenCode Free Model)
 
-  Model:       MiniMax-Text-01
-  Base URL:    https://api.minimax.chat/v1/text/chatcompletion_v2
-  Auth:        Bearer token in Authorization header
-  API Key:     stored in .env.local as MINIMAX_API_KEY
-               load with: os.getenv("MINIMAX_API_KEY")
+  No API key. No external account. No sign-in required.
+  OpenCode runs a local proxy that exposes the model as an OpenAI-compatible API.
+
+  File: agents/agent3_narrative/minimax_client.py
+
+  import openai, os
+  from agents.agent3_narrative.prompts import SYSTEM_PROMPT, build_user_prompt
+  from agents.agent3_narrative.fallback import generate_fallback_narrative
+
+  _client = openai.AsyncOpenAI(
+      base_url="http://localhost:4000/v1",
+      api_key="opencode-free",
+  )
+
+  async def generate_narrative(state) -> str:
+      try:
+          resp = await _client.chat.completions.create(
+              model="minimax/MiniMax-Text-2.5",
+              messages=[
+                  {"role": "system", "content": SYSTEM_PROMPT},
+                  {"role": "user",   "content": build_user_prompt(state)},
+              ],
+              temperature=0.1,
+              max_tokens=800,
+          )
+          return resp.choices[0].message.content
+      except Exception:
+          return generate_fallback_narrative(state)  # always succeed
 
   Always use:
     temperature: 0.1    (low = consistent, factual output)
     max_tokens: 800     (enough for SAR narrative)
-    timeout: 30 seconds
 
   SAR narrative system prompt is in: agents/agent3_narrative/prompts.py
   Do NOT inline prompts in node.py — always import from prompts.py
 
-  If Minimax fails: use the fallback template in agents/agent3_narrative/fallback.py
-  Never let a Minimax failure crash the pipeline.
+  If LLM fails for any reason: fallback in agents/agent3_narrative/fallback.py
+  Never let an LLM failure crash the pipeline.
 
 ---
 
@@ -267,28 +326,25 @@ Full schema in: agents/shared/schemas.py
   KAFKA_BOOTSTRAP_SERVERS=localhost:9092
   KAFKA_TOPIC_TRANSACTIONS=transactions
   KAFKA_TOPIC_FLAGGED=flagged_transactions
-  VLLM_BASE_URL=http://localhost:8000/v1
-  MINIMAX_API_KEY=get_this_from_team_lead
-  AWS_REGION=us-east-1
-  AWS_ACCESS_KEY_ID=
-  AWS_SECRET_ACCESS_KEY=
+  # NO MINIMAX_API_KEY NEEDED — using free OpenCode model
 
 ---
 
 ## Git Workflow — Exactly How We Work
 
   Branch structure:
-    main        → never touch directly
-    develop     → merge into at end of each day
-    feat/p1-*   → P1 feature branches
-    feat/p2-*   → P2 feature branches
-    feat/p3-*   → P3 feature branches
+    main          → never touch directly
+    develop       → merge into at end of each day
+    feat/ricky-*  → Ricky's feature branches
+    feat/nisarg-* → Nisarg's feature branches
+    feat/anshul-* → Anshul's feature branches
+    feat/ashwin-* → Ashwin's feature branches
 
   Daily routine:
     Morning (start of work):
       git checkout develop
       git pull origin develop
-      git checkout -b feat/p1-agent1-ingestion  (use your own prefix)
+      git checkout -b feat/ricky-agent1-ingestion  (use your own prefix)
 
     During work:
       commit every time a task is complete
@@ -297,15 +353,16 @@ Full schema in: agents/shared/schemas.py
 
     Evening sync (9pm every night):
       git add .
-      git commit -m "feat(dayX-pN): summary of what you built today"
+      git commit -m "feat(dayX-name): summary of what you built today"
       git push origin feat/your-branch
       open a PR to develop on GitHub
-      tag the other two people to review
+      tag the other people to review
       merge after 1 approval
 
     Never push to main directly.
     Never force push.
     If merge conflict: message the team, resolve together.
+    See PR_STRATEGY.md for Ricky's full merge decision guide.
 
 ---
 
@@ -363,7 +420,7 @@ Full schema in: agents/shared/schemas.py
   agents/agent2_risk/node.py           → Agent 2 LangGraph node
   agents/agent2_risk/typologies.py     → 4 AML typology definitions
   agents/agent3_narrative/node.py      → Agent 3 LangGraph node
-  agents/agent3_narrative/minimax_client.py → all Minimax API calls
+  agents/agent3_narrative/minimax_client.py → OpenCode free LLM calls
   agents/agent3_narrative/prompts.py   → system and user prompt templates
   agents/agent4_compliance/node.py     → Agent 4 LangGraph node
   agents/agent4_compliance/rules.py    → 8 compliance check functions
@@ -383,13 +440,14 @@ Full schema in: agents/shared/schemas.py
   tests/integration/test_full_pipeline.py → end to end test
   docs/demo_script.md                  → word for word demo script
   docs/pitch_deck_content.md           → slide content
+  PR_STRATEGY.md                       → Ricky's PR and merge decision guide
 
 ---
 
 ## Known Issues and Decisions Already Made
 
-  Decision: No vLLM self-hosted. Too slow to set up for hackathon.
-            Use Minimax API directly for all LLM calls.
+  Decision: LLM = MiniMax-Text-2.5 free via OpenCode. No API key. No account.
+            OpenCode exposes it as an OpenAI-compatible local endpoint.
 
   Decision: No Kafka consumer. Use Python asyncio queue + simulator instead.
             Mention Kafka in pitch as production architecture.
@@ -412,4 +470,5 @@ Full schema in: agents/shared/schemas.py
   Post in the team WhatsApp/Slack immediately.
   Do not spend more than 30 minutes stuck on anything.
   Tag the person who owns the relevant module.
-  If a schema needs to change: all 3 people agree before anyone edits schemas.py.
+  If a schema needs to change: all 4 people agree before anyone edits schemas.py.
+  For PR decisions and merge conflicts: see PR_STRATEGY.md.

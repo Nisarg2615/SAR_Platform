@@ -1,11 +1,22 @@
 # 🏦 SAR Platform — AI-Powered Suspicious Activity Report Generator
 
-> An AI-powered, multi-agent system for automating bank Suspicious Activity Reports (SAR) — built for speed, accuracy, and regulatory compliance.
+> An AI-powered, multi-agent pipeline that automatically generates regulator-ready Suspicious Activity Reports (SAR) for banks — built for a hackathon demo by a 4-person team.
 
 [![Python](https://img.shields.io/badge/Python-3.11-blue)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115.4-green)](https://fastapi.tiangolo.com)
 [![LangGraph](https://img.shields.io/badge/LangGraph-0.2.45-purple)](https://github.com/langchain-ai/langgraph)
-[![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
+[![LLM](https://img.shields.io/badge/LLM-MiniMax--Text--2.5%20(Free)-orange)](#llm-no-api-key-needed)
+
+---
+
+> [!IMPORTANT]
+> **Read `MASTER_CONTEXT.md` at the start of EVERY work session.** It is the single source of truth. All decisions, schemas, and API specs live there.
+
+> [!IMPORTANT]
+> **No external API key needed.** The LLM (MiniMax-Text-2.5) is provided FREE via OpenCode's built-in model — no account, no sign-in, no billing.
+
+> [!CAUTION]
+> **Never commit `.env.local`** — it is in `.gitignore` but always double-check before pushing. **Never push directly to `main` or `develop`.** Always use PRs.
 
 ---
 
@@ -14,106 +25,353 @@
 The SAR Platform processes every bank transaction through two intelligent loops:
 
 **🔵 Outer Loop — Prediction Engine**
-Every transaction → ML ensemble (XGBoost + SHAP) → scores it **GREEN / AMBER / RED**
+```
+Every transaction → XGBoost ML ensemble → GREEN / AMBER / RED
+```
 RED transactions automatically enter the SAR pipeline.
 
 **🔴 Inner Loop — 6-Agent SAR Pipeline**
 ```
-Agent 1 (Ingestion) → Agent 2 (Risk) → Agent 3 (Narrative) →
-Agent 4 (Compliance) → Agent 5 (Audit) → Agent 6 (Human Review)
+Agent 1 → Agent 2 → Agent 3 → Agent 4 → Agent 5 → Agent 6
+Ingestion  Risk     Narrative  Compliance  Audit   Human Review
 ```
 Output: Regulator-ready SAR document + immutable audit trail in Neo4j.
 
 ---
 
-## 🧱 Tech Stack
+## 👥 Team & Module Ownership
 
-| Layer | Technology |
-|---|---|
-| Runtime | Python 3.11 |
-| API | FastAPI 0.115.4 + uvicorn |
-| AI Pipeline | LangGraph 0.2.45 + LangChain 0.3.7 |
-| LLM | Minimax API (MiniMax-Text-01) |
-| Data Models | Pydantic v2 (2.9.2) |
-| Graph DB | Neo4j 5.14 Enterprise |
-| Relational DB | PostgreSQL 16 |
-| Cache | Redis 7 |
-| Vector Store | Weaviate 1.24 |
-| Streaming | Apache Kafka 3.6 (mocked by simulator) |
-| ML | XGBoost + scikit-learn + SHAP |
-| Frontend | Streamlit + pyvis |
-| Containers | Docker Compose |
+> [!IMPORTANT]
+> **Only work in your assigned modules. If you need to touch another person's module, ask them first on WhatsApp.** Unauthorized edits will be blocked at PR review.
+
+| Rank | Name | Role | Modules Owned |
+|---|---|---|---|
+| 1 — Tech Lead | **Ricky** | Backend + ML | `main.py`, `agents/pipeline.py`, `agents/agent1_ingestion/`, `agents/agent2_risk/`, `prediction_engine/` |
+| 2 — Senior | **Nisarg** | AI + Graph | `agents/agent3_narrative/`, `agents/agent4_compliance/`, `agents/agent5_audit/`, `graph/neo4j/` |
+| 3 | **Anshul** | UI + Review | `agents/agent6_review/`, `ui/` |
+| 4 — Junior | **Ashwin** | Infra + Tests | `infra/`, `docker-compose.yml`, `tests/unit/`, `tests/integration/` |
+
+**Shared files** (all 4 must agree before editing):
+- `agents/shared/schemas.py` — Pydantic contracts between all agents
+- `requirements.txt`
+- `MASTER_CONTEXT.md`
 
 ---
 
-## 🚀 Quick Start (New Team Member)
+## 🧱 Tech Stack
 
-### Prerequisites
-- Docker & Docker Compose installed
-- Python 3.11 installed
-- Git configured
+| Layer | Technology | Notes |
+|---|---|---|
+| Runtime | Python 3.11 | Use exactly 3.11 |
+| API | FastAPI 0.115.4 + uvicorn | Ricky owns |
+| AI Pipeline | LangGraph 0.2.45 + LangChain 0.3.7 | Nisarg + Ricky |
+| **LLM** | **MiniMax-Text-2.5 (FREE via OpenCode)** | **No API key needed** |
+| Data Models | Pydantic v2 (2.9.2) | BaseModel everywhere |
+| Graph DB | Neo4j 5.14 Enterprise | Nisarg owns |
+| Relational DB | PostgreSQL 16 | In-memory for demo |
+| Cache | Redis 7 | Started by Docker |
+| Vector Store | Weaviate 1.24 | Started by Docker |
+| Streaming | Kafka 3.6 | Mocked by simulator |
+| ML | XGBoost + scikit-learn + SHAP | Ricky owns |
+| Frontend | Streamlit + pyvis | Anshul owns |
+| Containers | Docker Compose | Ashwin owns |
 
-### 1. Clone and set up environment
+---
+
+## 🚀 Setup for New Team Members (Read Every Step)
+
+### Prerequisites — Install These First
 
 ```bash
-git clone https://github.com/<your-org>/Sar-platform.git
+# 1. Docker Desktop (required for all services)
+# Download from: https://www.docker.com/products/docker-desktop/
+# After install, open Docker Desktop and wait for the whale icon to appear
+
+# 2. Python 3.11 (exact version)
+# macOS:
+brew install python@3.11
+# Windows: download from python.org/downloads/release/python-3110/
+
+# 3. Git
+git --version   # already installed on most machines
+```
+
+> [!WARNING]
+> You MUST use Python **3.11** specifically. 3.12+ has breaking changes with some dependencies.
+
+### Step 1 — Clone the repo
+
+```bash
+git clone https://github.com/Rickykapoor/Sar-platform.git
 cd Sar-platform
+```
 
-# Create virtual environment
+### Step 2 — Create virtual environment
+
+```bash
+# Create venv (use python3.11 explicitly)
 python3.11 -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
 
-# Install dependencies
+# Activate it
+source .venv/bin/activate       # macOS / Linux
+# .venv\Scripts\activate        # Windows
+
+# Verify you're using the right Python
+python --version   # must say Python 3.11.x
+```
+
+### Step 3 — Install dependencies
+
+```bash
 pip install -r requirements.txt
 ```
 
-### 2. Configure environment variables
+### Step 4 — Set up environment variables
 
 ```bash
 cp .env.example .env.local
-# Edit .env.local and fill in your MINIMAX_API_KEY (get from Ricky)
 ```
 
-### 3. Start all infrastructure services
+Open `.env.local` in your editor. It looks like this:
+
+```env
+NEO4J_URI=bolt://localhost:7687
+NEO4J_USER=neo4j
+NEO4J_PASSWORD=sarplatform123
+POSTGRES_URI=postgresql://saruser:sarpass123@localhost:5432/sardb
+REDIS_URL=redis://localhost:6379
+WEAVIATE_URL=http://localhost:8080
+KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+KAFKA_TOPIC_TRANSACTIONS=transactions
+KAFKA_TOPIC_FLAGGED=flagged_transactions
+```
+
+> [!NOTE]
+> **No MINIMAX_API_KEY needed.** The LLM runs free inside OpenCode. Leave that variable out entirely.
+
+### Step 5 — Start all infrastructure with Docker
+
+> [!IMPORTANT]
+> **Docker Desktop must be running** before this step. Open it and wait for the green "Running" status.
 
 ```bash
-chmod +x infra/start_all.sh
+# Give execute permission (first time only)
+chmod +x infra/start_all.sh infra/check_services.sh
+
+# Start all Docker services (Neo4j, Postgres, Redis, Kafka, Weaviate)
 ./infra/start_all.sh
 ```
 
-### 4. Verify services are running
+This starts: Neo4j, PostgreSQL, Redis, Zookeeper, Kafka, and Weaviate.
+First run will download images (~3 GB). Subsequent runs are fast.
+
+**Verify all services are healthy:**
 
 ```bash
 ./infra/check_services.sh
 ```
 
-### 5. Run the backend
+Expected output:
+```
+✅ Neo4j       localhost:7474   UP
+✅ PostgreSQL  localhost:5432   UP
+✅ Redis       localhost:6379   UP
+✅ Kafka       localhost:9092   UP
+✅ Weaviate    localhost:8080   UP
+```
+
+If any service shows DOWN, wait 30 seconds and retry. Neo4j takes ~60 seconds to start.
+
+### Step 6 — Initialize Neo4j schema
+
+```bash
+python graph/neo4j/init_schema.py
+```
+
+This creates constraints and indexes. Only needs to run once per fresh Docker volume.
+
+### Step 7 — Start the FastAPI backend
 
 ```bash
 uvicorn main:app --reload --port 8000
 ```
 
-### 6. Run the frontend (new terminal)
-
-```bash
-streamlit run ui/app.py
-```
-
-### 7. Verify everything works
+Verify it works:
 
 ```bash
 curl http://localhost:8000/health
 # Expected: {"status": "ok"}
 ```
 
+Open the interactive API docs: [http://localhost:8000/docs](http://localhost:8000/docs)
+
+### Step 8 — Start the Streamlit frontend (new terminal tab)
+
+```bash
+# Make sure your venv is still activated in this new tab
+source .venv/bin/activate
+streamlit run ui/app.py
+```
+
+The UI opens automatically at [http://localhost:8501](http://localhost:8501).
+
+### Step 9 — Run the test suite
+
+```bash
+pytest tests/ -v
+python -m mypy agents/
+```
+
+All tests should pass. If a test fails before you've written any code, tell Ricky.
+
 ---
 
-## 🌐 Service Ports
+## 🐳 Docker Services — Detailed Reference
+
+### Service Map
+
+| Service | Image | Port | Purpose |
+|---|---|---|---|
+| Neo4j | `neo4j:5.14-enterprise` | 7474 (browser), 7687 (bolt) | Graph DB for audit trail |
+| PostgreSQL | `timescale/timescaledb:latest-pg16` | 5432 | Relational DB (minimal use in demo) |
+| Redis | `redis:7-alpine` | 6379 | Cache |
+| Zookeeper | `confluentinc/cp-zookeeper:7.5.0` | 2181 | Kafka dependency |
+| Kafka | `confluentinc/cp-kafka:7.5.0` | 9092 | Event streaming (mocked in demo) |
+| Weaviate | `semitechnologies/weaviate:1.24.0` | 8080 | Vector store (hardcoded context in demo) |
+
+### Docker commands you'll actually use
+
+```bash
+# Start everything
+docker compose up -d
+
+# Stop everything (keeps data)
+docker compose stop
+
+# Stop and DELETE all data volumes (fresh start)
+docker compose down -v
+
+# View logs for a specific service
+docker compose logs -f neo4j
+docker compose logs -f kafka
+
+# Check what's running
+docker compose ps
+
+# Restart a single service
+docker compose restart redis
+```
+
+### Neo4j browser
+
+Open [http://localhost:7474](http://localhost:7474)
+- Username: `neo4j`
+- Password: `sarplatform123`
+
+To verify data after running the pipeline:
+```cypher
+MATCH (n) RETURN n LIMIT 50
+```
+
+### Common Docker problems & fixes
+
+| Problem | Fix |
+|---|---|
+| "Port already in use" | `lsof -i :7474` → kill that PID, then try again |
+| Neo4j keeps restarting | Run `docker compose logs neo4j` to see why |
+| Kafka not starting | Zookeeper must start before Kafka — check `docker compose ps` |
+| "Cannot connect to Docker daemon" | Open Docker Desktop first |
+| Services start but Neo4j is DOWN | Wait 60 seconds — it's slow to initialize |
+
+---
+
+## 🤖 LLM — No API Key Needed
+
+> [!IMPORTANT]
+> The LLM **(MiniMax-Text-2.5)** is provided FREE by OpenCode's built-in model. You do NOT need to sign up for anything, create an account, or enter an API key. If you're inside an OpenCode session, the model is available automatically.
+
+**How it works in code (`agents/agent3_narrative/minimax_client.py`):**
+
+```python
+import openai
+
+client = openai.AsyncOpenAI(
+    base_url="http://localhost:4000/v1",  # OpenCode local proxy
+    api_key="opencode-free",              # placeholder — not validated
+)
+
+response = await client.chat.completions.create(
+    model="minimax/MiniMax-Text-2.5",
+    messages=[...],
+    temperature=0.1,
+    max_tokens=800,
+)
+```
+
+If the LLM call fails for any reason, the **fallback template** in `agents/agent3_narrative/fallback.py` activates — the pipeline never crashes.
+
+---
+
+## 📁 Project Structure
+
+```
+Sar-platform/
+├── main.py                               ← FastAPI app + all 10 endpoints (Ricky)
+├── agents/
+│   ├── shared/schemas.py                 ← ALL Pydantic models — SHARED, coordinate first
+│   ├── pipeline.py                       ← LangGraph StateGraph wiring (Ricky)
+│   ├── agent1_ingestion/node.py          ← Ingest + PII mask (Ricky)
+│   ├── agent2_risk/
+│   │   ├── node.py                       ← Risk scoring (Ricky)
+│   │   └── typologies.py                 ← 4 AML typologies (Ricky)
+│   ├── agent3_narrative/
+│   │   ├── node.py                       ← Narrative generation (Nisarg)
+│   │   ├── minimax_client.py             ← Free LLM calls via OpenCode (Nisarg)
+│   │   ├── prompts.py                    ← All prompts here, never inline (Nisarg)
+│   │   └── fallback.py                   ← Template fallback if LLM fails (Nisarg)
+│   ├── agent4_compliance/
+│   │   ├── node.py                       ← Compliance checks (Nisarg)
+│   │   └── rules.py                      ← 8 compliance functions (Nisarg)
+│   ├── agent5_audit/node.py              ← SHA256 hash + Neo4j write (Nisarg)
+│   └── agent6_review/node.py            ← Human approval handler (Anshul)
+├── prediction_engine/
+│   ├── model.py                          ← XGBoost + SHAP (Ricky)
+│   └── simulator.py                      ← 3 demo scenarios (Ricky)
+├── graph/neo4j/
+│   ├── init_schema.py                    ← Constraints + GraphWriter (Nisarg)
+│   ├── graph_api.py                      ← Visualization data (Nisarg)
+│   └── cypher_queries/                   ← All .cypher files (Nisarg)
+├── ui/
+│   ├── app.py                            ← Streamlit app 5 pages (Anshul)
+│   ├── api_client.py                     ← FastAPI calls from UI (Anshul)
+│   └── mock_data.py                      ← Offline dev mock data (Anshul)
+├── infra/
+│   ├── start_all.sh                      ← Start all Docker services (Ashwin)
+│   └── check_services.sh                 ← Health check all services (Ashwin)
+├── tests/
+│   ├── unit/                             ← Unit tests per module (Ashwin)
+│   └── integration/test_full_pipeline.py ← End-to-end test (Ashwin)
+├── docs/
+│   ├── demo_script.md                    ← Word-for-word demo (Ashwin writes)
+│   └── pitch_deck_content.md             ← Slide content (Ashwin writes)
+├── docker-compose.yml                    ← All service definitions (Ashwin)
+├── requirements.txt                      ← SHARED — coordinate before editing
+├── .env.example                          ← Template — copy to .env.local
+├── .env.local                            ← ⛔ NEVER COMMIT THIS
+├── MASTER_CONTEXT.md                     ← 📖 Read every session
+├── TASKS.md                              ← Sprint board
+├── CONTRIBUTING.md                       ← Branch and PR rules
+└── PR_STRATEGY.md                        ← Ricky's merge guide
+```
+
+---
+
+## 🌐 Service Ports at a Glance
 
 | Service | URL | Credentials |
 |---|---|---|
 | FastAPI Backend | http://localhost:8000 | — |
-| FastAPI Docs | http://localhost:8000/docs | — |
+| FastAPI Docs (Swagger) | http://localhost:8000/docs | — |
 | Streamlit UI | http://localhost:8501 | — |
 | Neo4j Browser | http://localhost:7474 | neo4j / sarplatform123 |
 | Neo4j Bolt | bolt://localhost:7687 | — |
@@ -124,167 +382,160 @@ curl http://localhost:8000/health
 
 ---
 
-## 📁 Project Structure
-
-```
-Sar-platform/
-├── main.py                          # FastAPI app + all endpoints
-├── agents/
-│   ├── shared/schemas.py            # All Pydantic models (source of truth)
-│   ├── pipeline.py                  # LangGraph StateGraph wiring
-│   ├── agent1_ingestion/node.py     # Agent 1 — Data ingestion & PII masking
-│   ├── agent2_risk/node.py          # Agent 2 — Risk scoring (XGBoost + SHAP)
-│   ├── agent2_risk/typologies.py    # 4 AML typology definitions
-│   ├── agent3_narrative/node.py     # Agent 3 — SAR narrative (Minimax LLM)
-│   ├── agent3_narrative/prompts.py  # All LLM prompts
-│   ├── agent4_compliance/node.py    # Agent 4 — Compliance checks
-│   ├── agent4_compliance/rules.py   # 8 compliance rule functions
-│   ├── agent5_audit/node.py         # Agent 5 — Immutable audit trail
-│   └── agent6_review/node.py        # Agent 6 — Human approval handler
-├── prediction_engine/
-│   ├── model.py                     # XGBoost scorer + SHAP explainer
-│   └── simulator.py                 # 3 demo scenario generators
-├── graph/neo4j/
-│   ├── init_schema.py               # Schema init + GraphWriter class
-│   ├── graph_api.py                 # Visualization data functions
-│   └── cypher_queries/              # All .cypher files
-├── ui/
-│   ├── app.py                       # Streamlit app (5 pages)
-│   ├── api_client.py                # All FastAPI calls from UI
-│   └── mock_data.py                 # Mock data for offline dev
-├── infra/
-│   ├── start_all.sh                 # One command to start everything
-│   └── check_services.sh            # Health check all services
-├── tests/
-│   ├── unit/                        # Unit tests per module
-│   └── integration/test_full_pipeline.py
-├── docs/
-│   ├── demo_script.md               # Word-for-word demo script
-│   └── pitch_deck_content.md        # Slide content
-├── docker-compose.yml
-├── requirements.txt
-├── .env.example                     # ← copy to .env.local and fill in
-├── MASTER_CONTEXT.md                # Full project context (read first!)
-├── AGENTS.md                        # Team workflow rules
-├── CONTRIBUTING.md                  # Branch rules and PR process
-└── TASKS.md                         # Sprint task assignments
-```
-
----
-
 ## 🔌 API Endpoints
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `POST` | `/submit-transaction` | Score risk, create SAR case |
+| `GET` | `/health` | Health check — first thing to test |
+| `POST` | `/submit-transaction` | Score risk, create SAR case, trigger pipeline |
 | `GET` | `/cases` | List all cases |
-| `GET` | `/case/{id}` | Get single case |
+| `GET` | `/case/{id}` | Get single case with full state |
 | `POST` | `/case/{id}/run-pipeline` | Run full 6-agent pipeline |
-| `GET` | `/case/{id}/pipeline-status` | Check agent completion |
-| `POST` | `/case/{id}/generate-narrative` | Trigger Agent 3 only |
+| `GET` | `/case/{id}/pipeline-status` | Which agents completed |
+| `POST` | `/case/{id}/generate-narrative` | Trigger Agent 3 (for UI button) |
 | `POST` | `/case/{id}/approve` | Human approval → FILED |
 | `POST` | `/case/{id}/dismiss` | Dismiss case |
 | `GET` | `/case/{id}/graph` | Nodes + edges for Neo4j viz |
-| `GET` | `/health` | Health check |
 
 ---
 
-## 🧪 Running Tests
+## 📋 Hard Rules — Read These Before Writing a Single Line
+
+> [!CAUTION]
+> **These are not suggestions. Breaking these rules creates bugs and blocks the whole team.**
+
+### Code Rules
+
+1. **Every agent function MUST follow this signature exactly:**
+   ```python
+   async def agent_N_name(state: SARCase) -> SARCase:
+   ```
+
+2. **Never `raise` inside an agent node.** Always catch exceptions and append to `state.error_log`, then return `state`. The pipeline must never crash.
+
+3. **Never construct a new `SARCase()` inside an agent.** Always receive the state object and return it modified.
+
+4. **Every agent MUST append to `state.audit_trail`** before returning.
+
+5. **Never inline prompts.** All prompts live in `agents/agent3_narrative/prompts.py`. Import them.
+
+6. **Load all config from environment variables** — never hardcode ports, passwords, or keys.
+
+### Git Rules
+
+7. **Never push directly to `main` or `develop`.** Always use a feature branch + PR.
+
+8. **Never force push** to any shared branch (`main`, `develop`). Force push is only allowed on your own feature branch with `--force-with-lease`.
+
+9. **Commit messages must follow the format:** `feat(scope): short description`
+
+10. **Never commit `.env.local`** or any file containing real credentials.
+
+11. **Only edit your own modules.** See the ownership table above.
+
+12. **Shared files (`schemas.py`, `requirements.txt`) need team agreement** before anyone edits them.
+
+### Collaboration Rules
+
+13. **Post blockers in WhatsApp immediately** — do not sit stuck for more than 30 minutes.
+
+14. **Tag the module owner before changing their code.** Even for a one-line fix.
+
+15. **If you add a package to `requirements.txt`,** announce it in WhatsApp so everyone can reinstall.
+
+---
+
+## 🧪 Testing
 
 ```bash
-# Unit tests
+# Run all tests
 pytest tests/ -v
+
+# Run just unit tests
+pytest tests/unit/ -v
+
+# Run just integration test (needs all services running)
+pytest tests/integration/ -v
 
 # Type checking
 python -m mypy agents/
 
-# Integration test (requires all services running)
-pytest tests/integration/test_full_pipeline.py -v
+# Test a single endpoint manually
+curl -X POST http://localhost:8000/submit-transaction \
+  -H "Content-Type: application/json" \
+  -d '{"amount_usd": 9800, "transaction_type": "wire", "geography": "offshore"}'
 ```
 
----
+### "Done" Criteria per Task Type
 
-## 🤝 Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for:
-- Branch naming conventions
-- Commit message format
-- PR review process
-- GitHub branch protection rules
-
----
-
-## 🏗 Architecture Overview
-
-```
-┌─────────────┐    POST /submit-transaction
-│  Streamlit  │ ──────────────────────────▶ ┌─────────────┐
-│     UI      │                              │   FastAPI   │
-│  (port 8501)│ ◀─────────────────────────  │  (port 8000)│
-└─────────────┘    SARCase JSON response     └──────┬──────┘
-                                                    │
-                                        ┌───────────▼──────────┐
-                                        │  Prediction Engine    │
-                                        │  XGBoost → RED/AMBER  │
-                                        └───────────┬──────────┘
-                                                    │ if RED
-                                        ┌───────────▼──────────┐
-                                        │   LangGraph Pipeline  │
-                                        │  Agent1→2→3→4→5       │
-                                        └───────────┬──────────┘
-                                                    │
-                                        ┌───────────▼──────────┐
-                                        │       Neo4j           │
-                                        │  Immutable Audit Trail│
-                                        └──────────────────────┘
-```
-
----
-
-## 📋 Team & Module Ownership
-
-See [TASKS.md](TASKS.md) for complete sprint assignments.
-
-| Module | Owner |
+| Task Type | How to Verify It's Done |
 |---|---|
-| `main.py`, `agents/agent1_ingestion/`, `agents/agent2_risk/`, `prediction_engine/` | **Ricky** (Lead) |
-| `agents/agent3_narrative/`, `agents/agent4_compliance/`, `graph/neo4j/` | **Nisarg** |
-| `agents/agent5_audit/`, `agents/agent6_review/`, `ui/` | **Anshul** |
-| `infra/`, `docker-compose.yml`, `tests/integration/` | **Ashwin** |
-| `agents/shared/schemas.py`, `requirements.txt` | **Shared** (coordinate before editing) |
+| Backend endpoint | `curl` returns correct JSON, no errors |
+| Agent task | `pytest tests/unit/test_agentN.py -v` passes |
+| Neo4j task | `MATCH (n) RETURN n` in browser shows correct nodes |
+| UI task | Page works with real data, no stuck spinners |
+| Integration | Full pipeline on structuring scenario, all fields populated |
 
 ---
 
-## ⚠️ Important Rules
+## 📅 Daily Git Ritual
 
-1. **Never commit `.env.local`** — it contains secrets
-2. **Never push directly to `main`** — always use PRs
-3. **Never force push** any branch
-4. **Never edit another person's module** without asking
-5. **Shared files** (`schemas.py`) require team agreement before editing
-6. **Tag reviewers** on every PR before merging
+### Morning (start of day)
+
+```bash
+git checkout develop
+git pull origin develop
+git checkout -b feat/yourname-taskname
+# e.g. git checkout -b feat/nisarg-minimax-client
+```
+
+### During the day
+
+```bash
+# Commit every completed task (not every 5 minutes)
+git add <files you changed>
+git commit -m "feat(agent3): add minimax client with fallback"
+# Never commit broken code. Use git stash if needed.
+```
+
+### Evening (9pm)
+
+```bash
+git add .
+git commit -m "feat(day1-nisarg): agent3 narrative and agent4 compliance complete"
+git push origin feat/nisarg-day1
+
+# Open PR on GitHub → target: develop
+# Fill in PR description
+# Tag at least 1 person to review
+# Merge after 1 approval
+```
 
 ---
 
-## 📅 Demo Flow (Hackathon)
+## 🎬 Demo Flow (6 Screens — Practice This)
 
-The demo has **6 screens** for judges:
+| # | Screen | What to show |
+|---|---|---|
+| 1 | Submit Transaction | "Structuring Demo" preset → Submit → RED result |
+| 2 | Risk Analysis | Score 0.9+, SHAP bars, typology match, risk signals |
+| 3 | Neo4j Graph | Colorful graph — Account (blue), Transaction (amber), SARCase (red) |
+| 4 | SAR Narrative | "Generate Narrative" → text streams in, compliance checklist turns green |
+| 5 | Audit Trail | Timeline of 5 agent decisions + SHA256 hash |
+| 6 | Human Approval | Analyst name → Approve → `st.balloons()` → status: FILED |
 
-1. **Submit Transaction** — Structuring Demo preset → RED result
-2. **Risk Analysis** — Risk score 0.9+, SHAP bars, typology match
-3. **Neo4j Graph** — Colorful account/transaction graph
-4. **SAR Narrative** — Streaming token-by-token generation
-5. **Audit Trail** — Timeline with immutable SHA256 hash
-6. **Human Approval** — st.balloons() confirming FILED status
-
-> 📌 Total demo time: 4 minutes. Practice 3 times before submission.
+> Total demo time: **4 minutes**. Practice this 3 times before submission.
 
 ---
 
-## 🔑 Getting Your API Key
+## ❓ Getting Help
 
-Contact **Ricky** (team lead) directly for:
-- `MINIMAX_API_KEY`
-- Any AWS credentials needed
-
-Do **not** share keys in Slack, WhatsApp, or commit them to git.
+| Situation | What to do |
+|---|---|
+| Stuck on a bug > 30 min | Post in WhatsApp with error + what you tried |
+| Need to change someone's module | Ask the owner, get explicit OK |
+| Want to change schemas.py | Post in WhatsApp, get all 4 to agree, then edit |
+| Need the LLM/API key | No key needed — it's free in OpenCode |
+| Merge conflict | See `PR_STRATEGY.md` Part 3, or message Ricky |
+| Docker service is down | See the Docker troubleshooting table above |
+| PR questions | See `PR_STRATEGY.md` — it's Ricky's guide |
