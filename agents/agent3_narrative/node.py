@@ -93,11 +93,11 @@ async def agent3_generate_narrative(state: SARCase) -> SARCase:
 
         state.narrative = SARNarrative(
             case_id=state.case_id,
-            subject_information=combined_subject,
-            suspicious_activity_description=combined_activity or narrative_body[:200],
+            summary=narrative_body[:100] + "...",
+            subject_info=combined_subject,
+            suspicious_activity=combined_activity or narrative_body[:200],
+            law_enforcement_note=law_note or "No specific law enforcement note.",
             narrative_body=narrative_body,
-            supporting_evidence_refs=evidence_refs,
-            model_version_used="minimax/MiniMax-Text-2.5",
             generation_timestamp=datetime.now(),
         )
 

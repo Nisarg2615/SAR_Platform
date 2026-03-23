@@ -40,12 +40,8 @@ async def agent5_write_audit(state: SARCase) -> SARCase:
         state.audit = AuditRecord(
             case_id=state.case_id,
             neo4j_audit_node_id=audit_node_id,
-            agent_decisions=state.audit_trail.copy(),
-            shap_explanations=(
-                state.risk_assessment.signals[0].model_dump()
-                if state.risk_assessment and state.risk_assessment.signals
-                else {}
-            ),
+            agent_timeline=state.audit_trail.copy(),
+            shap_explanations=state.risk_assessment.shap_values if state.risk_assessment else {},
             data_sources_cited=[
                 "XGBoost prediction engine",
                 "MiniMax-Text-2.5 LLM",

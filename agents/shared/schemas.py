@@ -65,6 +65,7 @@ class RiskAssessment(BaseModel):
     matched_typology: str
     typology_confidence: float = Field(ge=0.0, le=1.0)
     signals: list[RiskSignal]
+    shap_values: dict = Field(default_factory=dict)
     neo4j_pattern_found: bool
     assessment_timestamp: datetime
 
@@ -72,11 +73,11 @@ class RiskAssessment(BaseModel):
 class SARNarrative(BaseModel):
     """Output of Agent 3 — Narrative Generation"""
     case_id: str
-    subject_information: str
-    suspicious_activity_description: str
+    summary: str
+    subject_info: str
+    suspicious_activity: str
+    law_enforcement_note: str
     narrative_body: str
-    supporting_evidence_refs: list[str]
-    model_version_used: str
     generation_timestamp: datetime
 
 
@@ -94,7 +95,7 @@ class AuditRecord(BaseModel):
     """Output of Agent 5 — Audit Trail"""
     case_id: str
     neo4j_audit_node_id: str
-    agent_decisions: list[dict]
+    agent_timeline: list[dict]
     shap_explanations: dict
     data_sources_cited: list[str]
     audit_timestamp: datetime
