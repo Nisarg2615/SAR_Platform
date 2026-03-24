@@ -7,13 +7,17 @@ Start every session from the project root:
   opencode
 
 ## Module ownership
-- agents/agent1_ingestion   → Person A
-- agents/agent2_risk        → Person A
-- agents/agent3_narrative   → Person B
-- agents/agent4_compliance  → Person B
+- agents/agent1_ingestion   → shared
+- agents/agent2_risk        → shared
+- agents/agent3_narrative   → shared
+- agents/agent4_compliance  → shared
+- agents/agent5_audit       → shared
+- agents/agent6_review      → shared
 - prediction_engine/        → shared
 - graph/neo4j/              → shared
 - infra/                    → shared
+- tests/                    → shared
+- ui/                       → shared
 
 ## Before writing any code
 1. Pull latest develop:   git pull origin develop

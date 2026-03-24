@@ -30,7 +30,7 @@ class Transaction(BaseModel):
     transaction_id: str
     account_id: str
     counterparty_account_id: str
-    amount_usd: float = Field(gt=0)
+    amount_usd: float = Field(ge=0)
     timestamp: datetime
     transaction_type: str
     channel: str
@@ -70,14 +70,67 @@ class RiskAssessment(BaseModel):
     assessment_timestamp: datetime
 
 
+class Part1ReportDetails(BaseModel):
+    date_of_sending: str
+    is_replacement: bool
+    date_of_original_report: Optional[str] = None
+
+class Part2PrincipalOfficer(BaseModel):
+    bank_name: str
+    bsr_code: str
+    fiu_id: str
+    bank_category: str
+    officer_name: str
+    designation: str
+    address: str
+    city_town_district: str
+    state_country: str
+    pin_code: str
+    telephone: str
+    email: str
+
+class Part3ReportingBranch(BaseModel):
+    branch_name: str
+    bsr_code: str
+    fiu_id: str
+    address: str
+    city_town_district: str
+    state_country: str
+    pin_code: str
+    telephone: str
+    email: str
+
+class LinkedIndividual(BaseModel):
+    name: str
+    customer_id: str
+
+class LinkedEntity(BaseModel):
+    name: str
+    customer_id: str
+
+class LinkedAccount(BaseModel):
+    account_number: str
+    account_holder_name: str
+
+class Part7SuspicionDetails(BaseModel):
+    reasons_for_suspicion: list[str]
+    grounds_of_suspicion: str
+
+class Part8ActionTaken(BaseModel):
+    under_investigation: bool
+    agency_details: str
+
 class SARNarrative(BaseModel):
-    """Output of Agent 3 — Narrative Generation"""
+    """Output of Agent 3 — Narrative Generation (FIU-IND STR Format)"""
     case_id: str
-    summary: str
-    subject_info: str
-    suspicious_activity: str
-    law_enforcement_note: str
-    narrative_body: str
+    part1_report_details: Part1ReportDetails
+    part2_principal_officer: Part2PrincipalOfficer
+    part3_reporting_branch: Part3ReportingBranch
+    part4_linked_individuals: list[LinkedIndividual]
+    part5_linked_entities: list[LinkedEntity]
+    part6_linked_accounts: list[LinkedAccount]
+    part7_suspicion_details: Part7SuspicionDetails
+    part8_action_taken: Part8ActionTaken
     generation_timestamp: datetime
 
 

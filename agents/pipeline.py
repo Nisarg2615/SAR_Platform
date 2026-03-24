@@ -23,7 +23,9 @@ def check_tier(state: SARCase) -> str:
     return "skip"
 
 
-def build_pipeline() -> StateGraph:
+from typing import Any
+
+def build_pipeline() -> Any:
     """Constructs the SAR LangGraph pipeline."""
     workflow = StateGraph(SARCase)
     

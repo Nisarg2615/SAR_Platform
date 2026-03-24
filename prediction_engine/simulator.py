@@ -19,6 +19,9 @@ def _base_raw_transaction(tx_id="TX001"):
         "sender_account_id": "ACC-SENDER-01",
         "receiver_account_id": "ACC-RECEIVER-01",
         "subject_name": "John Doe",
+        "bank_name": "Barclays India",
+        "bsr_code": "4001234",
+        "branch_name": "Pune Tech Hub"
     }
 
 

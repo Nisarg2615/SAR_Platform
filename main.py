@@ -12,6 +12,7 @@ from datetime import datetime
 
 from agents.shared.schemas import SARCase, SARStatus
 from agents.pipeline import app as pipeline_app
+from agents.agent6_review.node import agent6_review
 from prediction_engine.simulator import (
     get_structuring_scenario,
     get_layering_scenario,
@@ -117,20 +118,14 @@ async def run_pipeline(case_id: str):
 
 
 @app.post("/case/{case_id}/approve")
-async def approve_case(case_id: str):
+async def approve_case(case_id: str, analyst_name: str = "Analyst-1"):
     """Analyst approves the generated SAR for filing."""
     if case_id not in DB:
         raise HTTPException(status_code=404, detail="Case not found")
         
     case = DB[case_id]
-    case.status = SARStatus.APPROVED
-    case.analyst_approved_by = "Analyst-1"
-    case.audit_trail.append({
-        "agent": "Analyst UI",
-        "action": "Case approved by Analyst-1",
-        "confidence": 1.0,
-        "timestamp": datetime.now().isoformat()
-    })
+    case = await agent6_review(case, analyst_name)
+    DB[case_id] = case
     return {"status": "success", "case_status": case.status}
 
 
