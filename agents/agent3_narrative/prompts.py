@@ -22,7 +22,7 @@ REQUIREMENTS:
     "part4_linked_individuals": [{"name": "...", "customer_id": "..."}]
     "part5_linked_entities": []
     "part6_linked_accounts": [{"account_number": "...", "account_holder_name": "..."}]
-    "part7_suspicion_details": {"reasons_for_suspicion": ["Value of transaction", "Activity in account"], "grounds_of_suspicion": "Full sequence of events narrative..."}
+    "part7_suspicion_details": {"reasons_for_suspicion": ["Value of transaction", "Activity in account"], "grounds_of_suspicion": "WRITE A HIGHLY DETAILED, MULTI-PARAGRAPH EXPLANATION HERE. Break down exactly why the transaction is suspicious, how it maps to known AML typologies, the subject's background, the geographical risk, and chronological sequence of events. Do not use bullet points—use lush, descriptive paragraphs like an official legal filing."}
     "part8_action_taken": {"under_investigation": false, "agency_details": ""}
 - Be factual. Use the data provided. Use dummy addresses if not provided.
 """

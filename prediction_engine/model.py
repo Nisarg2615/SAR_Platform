@@ -197,6 +197,17 @@ class XGBRiskEngine:
         probs = self._model.predict_proba(features)
         risk_score = float(probs[0, 1])
         
+        # --- NEW DATASET ADAPTATION: factor in explicit ML indicators ---
+        ml_indicators = transaction_dict.get("money_laundering_indicators", "")
+        if isinstance(ml_indicators, str) and len(ml_indicators) > 5:
+            # If explicit indicators are provided (from SAR CSV), boost risk score
+            if "high_value" in ml_indicators.lower() or "offshore" in ml_indicators.lower() or "rapid" in ml_indicators.lower():
+                risk_score = max(risk_score, 0.90)  # RED
+            else:
+                risk_score = max(risk_score, 0.70)  # AMBER
+        elif float(amount) > 50000:
+            risk_score = max(risk_score, 0.65)  # AMBER fallback for high amount without indicators
+
         assert self._explainer is not None
         shap_vals = self._explainer.shap_values(features)
         

@@ -18,6 +18,19 @@ def determine_typology(tx_dict: dict, shap_values: dict, risk_score: float) -> T
     
     signals = []
     
+    # 0. Check for explicit ML indicators from the SAR dataset
+    ml_indicators = tx_dict.get("money_laundering_indicators", "")
+    if isinstance(ml_indicators, str) and len(ml_indicators) > 5:
+        signals.append(f"Explicit ML indicators found: {ml_indicators}")
+        desc = tx_dict.get("suspicious_activity_description", "")
+        if "structuring" in ml_indicators.lower() or "structuring" in desc.lower():
+            return "Structuring", min(0.95, risk_score + 0.1), signals
+        if "offshore" in ml_indicators.lower() or "layering" in ml_indicators.lower():
+            return "Layering", min(0.95, risk_score + 0.1), signals
+        if "rapid" in ml_indicators.lower() or "turnover" in desc.lower():
+            return "Rapid Movement", min(0.95, risk_score + 0.1), signals
+        return "Targeted AML Risk", min(0.95, risk_score + 0.1), signals
+
     # 1. Structuring Typology Match
     if 9500 <= amount <= 9999:
         signals.append("Amount falls just below $10k BSA reporting threshold.")

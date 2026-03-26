@@ -24,6 +24,10 @@ from prediction_engine.simulator import (
     get_smurfing_scenario
 )
 from graph.neo4j.graph_api import get_case_graph
+from agents.shared.schemas import SARReportData
+from reports.typology_definitions import classify_typology
+from reports.pdf_generator import generate_sar_pdf
+from fastapi.responses import Response
 
 app = FastAPI(title="SAR Platform API", version="1.0.0")
 
@@ -51,6 +55,20 @@ if os.path.exists("mock_db.json"):
     except Exception as e:
         print(f"Failed to load mock_db.json: {e}")
 
+if os.path.exists("data/batch_results.json"):
+    try:
+        with open("data/batch_results.json", "r") as f:
+            batch_data = json.load(f)
+            loaded = 0
+            for k, v in batch_data.items():
+                if k not in DB:  # don't overwrite mock cases
+                    DB[k] = SARCase(**v)
+                    loaded += 1
+        print(f"Loaded {loaded} batch cases from data/batch_results.json (total DB: {len(DB)})")
+    except Exception as e:
+        print(f"Failed to load data/batch_results.json: {e}")
+
+
 
 class ApproveRequest(BaseModel):
     analyst_name: str = "Analyst-1"
@@ -63,7 +81,13 @@ class ApproveRequest(BaseModel):
 @app.get("/health")
 async def health_check():
     """Basic health endpoint."""
-    return {"status": "ok", "timestamp": datetime.now().isoformat()}
+    red_count = sum(1 for c in DB.values() if c.risk_assessment and str(c.risk_assessment.risk_tier) in ("red", "critical"))
+    return {
+        "status": "ok",
+        "timestamp": datetime.now().isoformat(),
+        "cases": {"total": len(DB), "red": red_count, "other": len(DB) - red_count}
+    }
+
 
 
 # ---------------------------------------------------------------------------
@@ -222,6 +246,79 @@ async def generate_narrative(case_id: str):
 
 
 # ---------------------------------------------------------------------------
+# SAR Report Data and PDF Generation (Feature 3)
+# ---------------------------------------------------------------------------
+
+@app.get("/case/{case_id}/report-data", response_model=SARReportData)
+async def get_report_data(case_id: str):
+    """Retrieves or assembles the editable SAR report data."""
+    if case_id not in DB:
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    case = DB[case_id]
+    
+    # If already saved by PUT previously, return it
+    if case.sar_report:
+        return case.sar_report
+        
+    # Otherwise, assemble fresh from the case state
+    report = SARReportData.from_sar_case(case)
+    
+    # Refine typology using the central registry based on triggers
+    if case.risk_assessment and case.risk_assessment.signals:
+        signal_types = [s.signal_type for s in case.risk_assessment.signals]
+        best_name, best_entry = classify_typology(signal_types)
+        if best_name != "Unknown":
+            report.typology = best_name
+            report.typology_code = best_entry.get("code", "")
+            report.typology_description = best_entry.get("description", "")
+            report.regulatory_references = best_entry.get("regulatory_references", [])
+            
+    return report
+
+import json
+import os
+
+BATCH_RESULTS_PATH = os.path.join(os.path.dirname(__file__), "data", "batch_results.json")
+
+def persist_db_to_disk():
+    """Helper to save the current in-memory DB so UI edits are not lost."""
+    try:
+        combined = {k: v.dict() for k, v in DB.items()}
+        with open(BATCH_RESULTS_PATH, "w") as f:
+            json.dump(combined, f, indent=2, default=str)
+    except Exception as e:
+        print(f"Warning: Failed to persist DB: {e}")
+
+@app.put("/case/{case_id}/report-data", response_model=SARReportData)
+async def update_report_data(case_id: str, body: SARReportData):
+    """Saves the user-edited SAR report data back to the case."""
+    if case_id not in DB:
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    DB[case_id].sar_report = body
+    persist_db_to_disk()
+    return body
+
+@app.post("/case/{case_id}/generate-pdf")
+async def generate_pdf(case_id: str, report: SARReportData):
+    """Generates the 7-page PDF report buffer from the provided data."""
+    if case_id not in DB:
+        raise HTTPException(status_code=404, detail="Case not found")
+        
+    try:
+        pdf_bytes = generate_sar_pdf(report, case_id)
+        # Return as downloadable PDF file
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="SAR_{case_id}.pdf"'}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={"error": f"Failed to generate PDF: {str(e)}"})
+
+
+# ---------------------------------------------------------------------------
 # Case approval and dismissal
 # ---------------------------------------------------------------------------
 
@@ -267,6 +364,61 @@ async def get_case_audit(case_id: str):
     if case_id not in DB:
         raise HTTPException(status_code=404, detail="Case not found")
     return {"audit_trail": DB[case_id].audit_trail}
+
+
+# ---------------------------------------------------------------------------
+# Account-level audit trail (Feature 2)
+# ---------------------------------------------------------------------------
+
+@app.get("/account/{account_id}/audit-trail")
+async def get_account_audit_trail(account_id: str):
+    """
+    Returns all SAR cases associated with the given account_id,
+    with full agent decisions and audit hashes. Supports multi-case history.
+    """
+    matching_cases = []
+    for case in DB.values():
+        # Check subject_account_ids in normalized, or raw_transaction account_id
+        account_ids = []
+        if case.normalized:
+            account_ids = list(case.normalized.subject_account_ids or [])
+        if not account_ids and case.raw_transaction:
+            raw_acct = case.raw_transaction.get("account_id", "")
+            if raw_acct:
+                account_ids = [raw_acct]
+
+        if account_id in account_ids:
+            tier = str(case.risk_assessment.risk_tier) if case.risk_assessment else "unknown"
+            matching_cases.append({
+                "case_id": case.case_id,
+                "status": str(case.status),
+                "risk_score": case.risk_assessment.risk_score if case.risk_assessment else 0.0,
+                "risk_tier": tier,
+                "typology": case.risk_assessment.matched_typology if case.risk_assessment else "Unknown",
+                "filed_at": str(case.final_filed_timestamp) if case.final_filed_timestamp else None,
+                "analyst": case.analyst_approved_by,
+                "agent_decisions": case.audit_trail,
+                "immutable_hash": case.audit.immutable_hash if case.audit else None,
+                "total_amount_usd": case.normalized.total_amount_usd if case.normalized else 0.0,
+            })
+
+    if not matching_cases:
+        raise HTTPException(status_code=404, detail={"error": f"No cases found for account {account_id}"})
+
+    sar_cases = [c for c in matching_cases if c["risk_tier"] in ("red", "critical")]
+    dismissed = [c for c in matching_cases if c["status"] == "dismissed"]
+    all_scores = [c["risk_score"] for c in matching_cases if c["risk_score"] > 0]
+    avg_score = round(sum(all_scores) / len(all_scores), 3) if all_scores else 0.0
+
+    return {
+        "account_id": account_id,
+        "total_cases": len(matching_cases),
+        "total_sar_required": len(sar_cases),
+        "total_dismissed": len(dismissed),
+        "risk_score_avg": avg_score,
+        "cases": sorted(matching_cases, key=lambda x: x["filed_at"] or "", reverse=True)
+    }
+
 
 
 # ---------------------------------------------------------------------------

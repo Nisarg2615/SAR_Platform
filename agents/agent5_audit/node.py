@@ -35,18 +35,39 @@ async def agent5_write_audit(state: SARCase) -> SARCase:
         json_str = _serialize_state(state)
         immutable_hash = hashlib.sha256(json_str.encode()).hexdigest()
 
-        # 2. Build the AuditRecord
+        # 2. Build the AuditRecord with richer content
         audit_node_id = str(uuid.uuid4())
+
+        # Extract account_id for account-level correlation
+        account_id = ""
+        if state.normalized and state.normalized.subject_account_ids:
+            account_id = state.normalized.subject_account_ids[0]
+        elif state.raw_transaction:
+            account_id = state.raw_transaction.get("account_id", "")
+
+        # Include account_id in hash to tie it uniquely to the account's history
+        hash_material = {
+            "case_id": state.case_id,
+            "account_id": account_id,
+            "audit_trail": state.audit_trail,
+            "risk_score": state.risk_assessment.risk_score if state.risk_assessment else 0.0,
+            "risk_tier": str(state.risk_assessment.risk_tier) if state.risk_assessment else "unknown",
+        }
+        immutable_hash = hashlib.sha256(
+            json.dumps(hash_material, sort_keys=True, default=str).encode()
+        ).hexdigest()
+
         state.audit = AuditRecord(
             case_id=state.case_id,
             neo4j_audit_node_id=audit_node_id,
             agent_timeline=state.audit_trail.copy(),
             shap_explanations=state.risk_assessment.shap_values if state.risk_assessment else {},
             data_sources_cited=[
-                "XGBoost prediction engine",
-                "MiniMax-Text-2.5 LLM",
-                "AML compliance rule engine",
-                "Neo4j graph database",
+                "XGBoost ML prediction engine",
+                "Groq API (Llama 3 8B) — narrative generation",
+                "AML compliance rule engine (8 rules)",
+                "TransactionHistoryStore — past transaction context",
+                "Neo4j graph database (audit persistence)",
             ],
             audit_timestamp=datetime.now(),
             immutable_hash=immutable_hash,

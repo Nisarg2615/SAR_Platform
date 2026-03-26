@@ -58,7 +58,7 @@ INNER LOOP — 6 Agent SAR Pipeline:
 
   Person 1 (Ricky) — Tech Lead · Backend + ML
     OWNS: main.py, agents/pipeline.py, agents/agent1_ingestion/,
-          agents/agent2_risk/, prediction_engine/
+          agents/agent2_risk/, prediction_engine/, scripts/ingest_csv.py
 
   Person 2 (Nisarg) — AI Engineer · LLM + Graph
     OWNS: agents/agent3_narrative/, agents/agent4_compliance/,

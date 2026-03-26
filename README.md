@@ -38,6 +38,8 @@ Ingestion  Risk     Narrative  Compliance  Audit   Human Review
 ```
 Output: Regulator-ready SAR document + immutable audit trail in Neo4j.
 
+*Now supports ingestion of explicit AML typology datasets (`suspicious-activity-reports-sar.csv`) out of the box!*
+
 ---
 
 ## 👥 Team & Module Ownership

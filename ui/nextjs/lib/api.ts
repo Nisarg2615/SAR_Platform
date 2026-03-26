@@ -113,6 +113,74 @@ export interface CaseSummary {
   last_updated: string;
 }
 
+export interface AccountCaseSummary {
+  case_id: string;
+  status: string;
+  risk_score: number;
+  risk_tier: string;
+  typology: string;
+  filed_at: string | null;
+  analyst: string | null;
+  agent_decisions: AuditEntry[];
+  immutable_hash: string | null;
+  total_amount_usd: number;
+}
+
+export interface AccountAuditTrail {
+  account_id: string;
+  total_cases: number;
+  total_sar_required: number;
+  total_dismissed: number;
+  risk_score_avg: number;
+  cases: AccountCaseSummary[];
+}
+
+export interface SARReportData {
+  report_title: string;
+  fincen_bsa_id: string | null;
+  filing_institution_name: string;
+  filing_institution_address: string;
+  filing_date: string;
+  report_period_start: string;
+  report_period_end: string;
+  subject_account_id: string;
+  subject_name: string;
+  subject_address: string;
+  subject_id_type: string;
+  subject_id_number: string;
+  transaction_ids: string[];
+  total_amount_usd: number;
+  transaction_types: string[];
+  geographies_involved: string[];
+  date_range_start: string;
+  date_range_end: string;
+  typology: string;
+  typology_code: string;
+  typology_description: string;
+  suspicion_reason: string;
+  regulatory_references: string[];
+  narrative_body: string;
+  narrative_supporting_facts: string[];
+  risk_score: number;
+  risk_tier: string;
+  risk_signals: Record<string, unknown>[];
+  shap_top_features: Record<string, unknown>[];
+  compliance_issues: string[];
+  compliance_passed: boolean;
+  regulatory_flags: string[];
+  agent_decisions: Record<string, unknown>[];
+  immutable_hash: string;
+  audit_created_at: string;
+  analyst_name: string | null;
+  analyst_approved_at: string | null;
+  analyst_notes: string;
+  section_filing_reviewed: boolean;
+  section_subject_reviewed: boolean;
+  section_typology_reviewed: boolean;
+  section_narrative_reviewed: boolean;
+}
+
+
 async function api<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     headers: { 'Content-Type': 'application/json' },
@@ -140,4 +208,18 @@ export const sarApi = {
   getGraph: (id: string) => api<{ nodes: unknown[]; edges: unknown[] }>(`/case/${id}/graph`),
   simulateScenario: (scenario: 'structuring' | 'layering' | 'smurfing') =>
     api<{ case_id: string; scenario_type: string; raw_transaction: Record<string, unknown> }>(`/demo/simulate/${scenario}`, { method: 'POST' }),
+  getAccountAuditTrail: (accountId: string) =>
+    api<AccountAuditTrail>(`/account/${accountId}/audit-trail`),
+  getReportData: (id: string) => api<SARReportData>(`/case/${id}/report-data`),
+  saveReportData: (id: string, data: SARReportData) =>
+    api<SARReportData>(`/case/${id}/report-data`, { method: 'PUT', body: JSON.stringify(data) }),
+  downloadPdfFromServer: async (id: string, data: SARReportData): Promise<Blob> => {
+    const res = await fetch(`${BASE}/case/${id}/generate-pdf`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.blob();
+  },
 };
