@@ -201,7 +201,7 @@ export default function CaseDetail() {
               {running ? 'Running…' : 'Run Pipeline'}
             </button>
           )}
-          {data.normalized && !narrative && (
+          {data.normalized && !narrative && risk?.risk_tier !== 'green' && (
             <button onClick={generateNarrative} disabled={generating}
               style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.25)', color: '#a78bfa', padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer', opacity: generating ? 0.6 : 1 }}>
               {generating ? <Loader style={{ width: 13, height: 13, animation: 'spin 1s linear infinite' }} /> : <FileText style={{ width: 13, height: 13 }} />}
@@ -361,7 +361,13 @@ export default function CaseDetail() {
       {/* ══ SAR REPORT (EDITABLE) ══ */}
       {tab === 'SAR Report' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {reportLoading ? (
+          {risk?.risk_tier === 'green' ? (
+            <div style={{ ...card, textAlign: 'center', padding: 56 }}>
+              <Shield style={{ display: 'inline-block', color: '#10b981', width: 26, height: 26, marginBottom: 16 }} />
+              <p style={{ fontSize: 14, color: '#e4e4e7', marginBottom: 8, fontWeight: 500 }}>SAR Filing Not Required</p>
+              <p style={{ fontSize: 13, color: '#a1a1aa' }}>This case was classified as GREEN (Low Risk). Regulatory reporting is automatically bypassed.</p>
+            </div>
+          ) : reportLoading ? (
             <div style={{ ...card, textAlign: 'center', padding: 56 }}>
               <Loader style={{ display: 'inline-block', color: '#71717a', width: 24, height: 24, animation: 'spin 1s linear infinite' }} />
               <p style={{ fontSize: 13, color: '#52525b', marginTop: 16 }}>Loading report data...</p>

@@ -40,6 +40,19 @@ async def agent4_check_compliance(state: SARCase) -> SARCase:
             and state.narrative is not None
         )
 
+        directive = state.orchestrator_decision.directives.get("agent4_compliance") if state.orchestrator_decision else None
+        if directive:
+            from agents.llm.client import llm_call
+            llm_res, provider = await llm_call(
+                "You are an AML Compliance AI. Review the case and output a 1 sentence compliance summary.",
+                f"Issues found: {len(issues)}",
+                directive.provider.value,
+                directive.model,
+                fallback_chain=[p.value for p in directive.fallback_chain]
+            )
+            if llm_res:
+                issues.append(f"[{provider} AI Analysis]: {llm_res}")
+
         state.compliance = ComplianceResult(
             case_id=state.case_id,
             bsa_compliant=not bsa_issue,

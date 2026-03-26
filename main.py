@@ -78,14 +78,41 @@ class ApproveRequest(BaseModel):
 # Health
 # ---------------------------------------------------------------------------
 
+from agents.orchestrator.health_cache import health_cache
+from agents.orchestrator.budget_tracker import budget_tracker
+from agents.llm.config import PROVIDER_CONFIGS, AGENT_PRIMARY_PROVIDER, AGENT_MODEL_SIZE
+
 @app.get("/health")
 async def health_check():
     """Basic health endpoint."""
     red_count = sum(1 for c in DB.values() if c.risk_assessment and str(c.risk_assessment.risk_tier) in ("red", "critical"))
+    
+    providers_configured = {}
+    provider_health = {}
+    
+    for p_name, cfg in PROVIDER_CONFIGS.items():
+        providers_configured[p_name] = bool(os.getenv(cfg.get("api_key_env", "")))
+        provider_health[p_name] = health_cache.is_healthy(p_name)
+        
+    agent_routing = {}
+    for agent_name, primary in AGENT_PRIMARY_PROVIDER.items():
+        if not primary:
+            continue
+        size = AGENT_MODEL_SIZE.get(agent_name, "small")
+        cfg = PROVIDER_CONFIGS.get(primary, {})
+        model = cfg.get("models", {}).get(size) or cfg.get("models", {}).get("small", "unknown")
+        agent_routing[agent_name] = f"{primary}:{model}"
+
     return {
         "status": "ok",
         "timestamp": datetime.now().isoformat(),
-        "cases": {"total": len(DB), "red": red_count, "other": len(DB) - red_count}
+        "cases": {"total": len(DB), "red": red_count, "other": len(DB) - red_count},
+        "orchestrator": {
+            "providers_configured": providers_configured,
+            "provider_health": provider_health,
+            "budget_status": budget_tracker.get_status(),
+            "agent_routing": agent_routing
+        }
     }
 
 
@@ -135,7 +162,7 @@ async def get_cases():
             "subject": c.normalized.subject_name if c.normalized else "Unknown",
             "last_updated": c.audit_trail[-1]["timestamp"] if c.audit_trail else "Unknown"
         }
-        for c in DB.values()
+        for c in DB.values() if c.audit is not None
     ]
 
 

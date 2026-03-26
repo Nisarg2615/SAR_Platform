@@ -12,13 +12,29 @@ from agents.shared.schemas import (
     Part3ReportingBranch, LinkedIndividual, LinkedEntity, LinkedAccount,
     Part7SuspicionDetails, Part8ActionTaken
 )
-from agents.agent3_narrative.minimax_client import generate_narrative
+from agents.llm.client import llm_call
+from agents.agent3_narrative.prompts import SYSTEM_PROMPT, build_user_prompt
 from agents.agent3_narrative.fallback import generate_fallback_narrative
 
 async def agent3_generate_narrative(state: SARCase) -> SARCase:
     try:
-        raw_text = await generate_narrative(state)
-        
+        directive = state.orchestrator_decision.directives.get("agent3_narrative") if state.orchestrator_decision else None
+        provider  = directive.provider.value if directive else "gemini"
+        model     = directive.model    if directive else "gemini-2.5-flash"
+        fallback_chain = [p.value for p in directive.fallback_chain] if directive else []
+
+        raw_text, provider_used = await llm_call(
+            system_prompt=SYSTEM_PROMPT,
+            user_prompt=build_user_prompt(state),
+            provider=provider,
+            model=model,
+            fallback_chain=fallback_chain,
+            max_tokens=2000,
+        )
+        if not raw_text:
+            raw_text = generate_fallback_narrative(state)
+            provider_used  = "template_fallback"
+            
         # Clean JSON markdown blocks
         if "```json" in raw_text:
             raw_text = raw_text.split("```json")[1].split("```")[0]
@@ -62,7 +78,7 @@ async def agent3_generate_narrative(state: SARCase) -> SARCase:
 
         state.audit_trail.append({
             "agent": "Agent 3 - Narrative Generation",
-            "action": f"Generated FIU-IND STR JSON using MiniMax-Text-2.5",
+            "action": f"Generated FIU-IND STR JSON using {provider_used}:{model}",
             "confidence": 0.95,
             "timestamp": datetime.now().isoformat(),
         })

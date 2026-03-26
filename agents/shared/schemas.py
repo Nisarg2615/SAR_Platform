@@ -291,6 +291,30 @@ class SARReportData(BaseModel):
         return r
 
 
+class ProviderName(str, Enum):
+    GROQ       = "groq"
+    GEMINI     = "gemini"
+    MISTRAL    = "mistral"
+    CEREBRAS   = "cerebras"
+    FALLBACK   = "template_fallback"
+
+class LLMRoutingDirective(BaseModel):
+    agent_name: str
+    provider: ProviderName
+    model: str
+    max_tokens: int = 900
+    temperature: float = 0.1
+    reason: str = ""
+    fallback_chain: list[ProviderName] = []
+
+class OrchestratorDecision(BaseModel):
+    decided_at: str
+    directives: dict[str, LLMRoutingDirective]
+    total_budget_tokens: int = 10000
+    tokens_used: int = 0
+    provider_health: dict[str, bool] = {}
+
+
 class SARCase(BaseModel):
     """Master state object — flows through all 6 agents"""
     case_id: str
@@ -301,6 +325,7 @@ class SARCase(BaseModel):
     narrative: Optional[SARNarrative] = None
     compliance: Optional[ComplianceResult] = None
     audit: Optional[AuditRecord] = None
+    orchestrator_decision: Optional[OrchestratorDecision] = None
     analyst_approved_by: Optional[str] = None
     final_filed_timestamp: Optional[datetime] = None
     sar_report: Optional[SARReportData] = None

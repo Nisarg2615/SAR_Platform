@@ -38,13 +38,13 @@ async def agent1_ingest(state: SARCase) -> SARCase:
         state.normalized = NormalizedCase(
             case_id=state.case_id,
             transactions=[tx],
-            subject_name="[REDACTED]" if raw.get("subject_name") else "Unknown",
+            subject_name=raw.get("subject_name", "Unknown"),
             subject_account_ids=[tx.account_id],
             date_range_start=tx.timestamp,
             date_range_end=tx.timestamp,
             total_amount_usd=tx.amount_usd,
             ingestion_timestamp=datetime.now(),
-            presidio_masked=True,
+            presidio_masked=False,
         )
 
         state.audit_trail.append({

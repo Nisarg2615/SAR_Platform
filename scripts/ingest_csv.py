@@ -91,8 +91,14 @@ async def main():
                     json.dump(results, f, indent=2, default=str)
             
             elapsed = time.time() - start
-            wait_time = max(0, 8.5 - elapsed)
-            await asyncio.sleep(wait_time)
+            tier = (case_data.get("risk_assessment") or {}).get("risk_tier", "unknown") if case_data else "unknown"
+            
+            # Rate limit is only hit if narrative agent (Groq) was triggered
+            if tier in ("red", "amber", "critical"):
+                wait_time = max(0, 8.5 - elapsed)
+                await asyncio.sleep(wait_time)
+            else:
+                await asyncio.sleep(0.1)
 
     print("\nBatch CSV ingestion completed.")
 

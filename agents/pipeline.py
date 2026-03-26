@@ -12,6 +12,7 @@ from agents.agent2_risk.node import agent2_assess_risk
 from agents.agent3_narrative.node import agent3_generate_narrative
 from agents.agent4_compliance.node import agent4_check_compliance
 from agents.agent5_audit.node import agent5_write_audit
+from agents.orchestrator.node import orchestrator_node
 
 
 def check_tier(state: SARCase) -> str:
@@ -30,6 +31,7 @@ def build_pipeline() -> Any:
     workflow = StateGraph(SARCase)
     
     # Add Nodes
+    workflow.add_node("orchestrator", orchestrator_node)
     workflow.add_node("agent1", agent1_ingest)
     workflow.add_node("agent2", agent2_assess_risk)
     workflow.add_node("agent3", agent3_generate_narrative)
@@ -37,7 +39,8 @@ def build_pipeline() -> Any:
     workflow.add_node("agent5", agent5_write_audit)
     
     # Define Edges
-    workflow.add_edge(START, "agent1")
+    workflow.add_edge(START, "orchestrator")
+    workflow.add_edge("orchestrator", "agent1")
     workflow.add_edge("agent1", "agent2")
     
     # Conditional Routing after Agent 2

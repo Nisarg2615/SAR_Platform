@@ -286,3 +286,27 @@ elif page == "Audit Trail":
     if case.get("audit") and case["audit"].get("immutable_hash"):
         st.code(case["audit"]["immutable_hash"], language="text")
         st.caption("Immutable — cannot be modified")
+
+    import requests
+    try:
+        res = requests.get("http://127.0.0.1:8000/health", timeout=3)
+        if res.status_code == 200:
+            hdata = res.json()
+            orch = hdata.get("orchestrator")
+            if orch:
+                with st.expander("🔀 LLM Provider Routing", expanded=False):
+                    routing = orch.get("agent_routing", {})
+                    health_status = orch.get("provider_health", {})
+                    
+                    routing_data = []
+                    for ag, val in routing.items():
+                        provider = val.split(":")[0] if ":" in val else "unknown"
+                        model = val.split(":")[1] if ":" in val else "unknown"
+                        is_healthy = health_status.get(provider, False)
+                        status_str = "🟢 Active" if is_healthy else "🔴 Offline/Fallback"
+                        routing_data.append({"Agent": ag, "Provider": provider, "Model": model, "Health": status_str})
+                    
+                    if routing_data:
+                        st.table(routing_data)
+    except Exception:
+        pass

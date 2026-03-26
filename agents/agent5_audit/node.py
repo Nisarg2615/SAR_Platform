@@ -82,6 +82,19 @@ async def agent5_write_audit(state: SARCase) -> SARCase:
         }
         state.audit_trail.append(final_entry)
 
+        directive = state.orchestrator_decision.directives.get("agent5_audit") if state.orchestrator_decision else None
+        if directive:
+            from agents.llm.client import llm_call
+            llm_res, provider = await llm_call(
+                "You are an Audit AI. Write a 1-sentence audit summary.",
+                f"Case ID: {state.case_id}",
+                directive.provider.value,
+                directive.model,
+                fallback_chain=[p.value for p in directive.fallback_chain]
+            )
+            if llm_res:
+                 state.audit_trail.append({"agent": "Agent 5 - Audit Summary", "action": f"[{provider}]: {llm_res}", "confidence": 1.0, "timestamp": datetime.now().isoformat()})
+
         # 4. Write to Neo4j via GraphWriter (lazy import to avoid circular deps)
         try:
             from graph.neo4j.graph_writer import GraphWriter
