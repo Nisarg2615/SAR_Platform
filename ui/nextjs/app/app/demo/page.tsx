@@ -95,12 +95,49 @@ export default function DemoPage() {
         </p>
       </div>
 
-      {/* Run All */}
-      <button id="run-all-btn" onClick={runAll} disabled={!!running}
-        style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#2563eb', color: '#fff', padding: '10px 22px', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 'none', opacity: running ? 0.6 : 1, width: 'fit-content' }}>
-        {running === 'all' ? <Loader style={{ width: 15, height: 15, animation: 'spin 1s linear infinite' }} /> : <Zap style={{ width: 15, height: 15 }} />}
-        {running === 'all' ? 'Running All Scenarios…' : 'Run All 3 Scenarios'}
-      </button>
+      {/* Actions */}
+      <div style={{ display: 'flex', gap: 12 }}>
+        <button id="run-all-btn" onClick={runAll} disabled={!!running}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#2563eb', color: '#fff', padding: '10px 22px', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 'none', opacity: running ? 0.6 : 1, width: 'fit-content' }}>
+          {running === 'all' ? <Loader style={{ width: 15, height: 15, animation: 'spin 1s linear infinite' }} /> : <Zap style={{ width: 15, height: 15 }} />}
+          {running === 'all' ? 'Running All Scenarios…' : 'Run All 3 Scenarios'}
+        </button>
+
+        <button id="refresh-pipeline-btn" 
+          onClick={async () => {
+            setRunning('all');
+            try {
+              const res = await sarApi.refreshPipeline();
+              alert(res.message);
+              window.location.reload();
+            } catch (e) {
+              alert('Refresh failed');
+            }
+            setRunning(null);
+          }} 
+          disabled={!!running}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '10px 22px', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: running ? 0.6 : 1, width: 'fit-content' }}>
+          <Loader style={{ width: 15, height: 15, animation: running ? 'spin 1s linear infinite' : 'none' }} />
+          Full System Refresh
+        </button>
+
+        <button id="train-model-btn" 
+          onClick={async () => {
+            setRunning('all');
+            try {
+              const res = await sarApi.trainModel();
+              alert(res.message);
+            } catch (e) {
+              alert('Training failed');
+            }
+            setRunning(null);
+          }} 
+          disabled={!!running}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)', color: '#10b981', padding: '10px 22px', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: running ? 0.6 : 1, width: 'fit-content' }}>
+          <Shield style={{ width: 15, height: 15 }} />
+          Start Model Training
+        </button>
+      </div>
 
       {/* Cards */}
       {SCENARIOS.map(s => {

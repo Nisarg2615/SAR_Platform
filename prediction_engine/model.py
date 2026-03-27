@@ -74,16 +74,20 @@ def load_and_preprocess_data(csv_path: str) -> tuple[np.ndarray, np.ndarray]:
     
     features = pd.DataFrame()
     
-    features["transaction_frequency_7d"] = np.random.uniform(0.1, 0.9, len(df))
-    features["amount_usd"] = df["Transaction_Amount"] / 1000.0
+    # --- DETERMINISTIC FEATURE ENGINEERING (Removing random noise) ---
+    # Frequency is modeled as a function of transaction count relative to account age
+    # For synthetic demo, we use a more stable mapping based on Transaction_Amount and Age
+    features["transaction_frequency_7d"] = (df["Transaction_Amount"] % 100) / 100.0 if not df.empty else 0.5
+    features["amount_usd"] = (df["Transaction_Amount"] / 1000.0).clip(0, 100)
     features["geography_risk_score"] = df["City"].map(city_risk_map).fillna(0.3)
-    features["account_age_days"] = (df["Age"] * 365).clip(0, 20000) / 20000.0
-    features["velocity_score"] = np.random.uniform(0.1, 0.9, len(df))
+    features["account_age_days"] = (df["Age"] * 365.25).clip(0, 20000) / 20000.0
+    # Velocity is modeled based on transaction hour (night time = higher velocity risk)
+    features["velocity_score"] = df["transaction_hour"].apply(lambda h: 0.7 if (h < 6 or h > 22) else 0.2)
     features["merchant_category_risk"] = df["Merchant_Category"].map(merchant_risk_map).fillna(0.3)
     features["device_risk"] = df["Transaction_Device"].map(device_risk_map).fillna(0.3)
     features["time_of_day_risk"] = df["transaction_hour"].apply(lambda h: 0.8 if (h >= 0 and h < 6) else 0.3)
-    features["transaction_type_risk"] = 0.3
-    features["account_balance_ratio"] = (df["Account_Balance"] / (df["Transaction_Amount"] + 1)).clip(0, 10) / 10.0
+    features["transaction_type_risk"] = 0.3 # Default for now
+    features["account_balance_ratio"] = (df["Account_Balance"] / (df["Transaction_Amount"] + 1.0)).clip(0, 10) / 10.0
     features["customer_age_risk"] = df["Age"].apply(lambda a: 0.8 if a < 25 or a > 60 else 0.3)
     features["state_risk"] = df["State"].map(state_risk_map).fillna(0.3)
     features["transaction_hour"] = df["transaction_hour"] / 24.0
@@ -97,36 +101,45 @@ def load_and_preprocess_data(csv_path: str) -> tuple[np.ndarray, np.ndarray]:
 
 
 def train_and_save_model():
-    """Train XGBoost model on real fraud data and save to disk."""
+    """Train XGBoost model with overfit protection and regularizers."""
     print(f"Loading data from {DATA_PATH}...")
     
     if not os.path.exists(DATA_PATH):
         print("Data file not found, training on synthetic data")
-        X_train = np.random.rand(1000, NUM_FEATURES)
-        y_train = (np.sum(X_train[:, :5], axis=1) > 3.0).astype(int)
+        X = np.random.rand(1000, NUM_FEATURES)
+        y = (np.sum(X[:, :5], axis=1) > 3.0).astype(int)
     else:
-        X_train, y_train = load_and_preprocess_data(DATA_PATH)
-        print(f"Loaded {len(X_train)} samples, {np.sum(y_train)} fraudulent")
-        
-        if np.sum(y_train) < 10:
-            print("Too few positive samples, using synthetic labels")
-            y_train = (np.sum(X_train[:, :5], axis=1) > 3.0).astype(int)
+        X, y = load_and_preprocess_data(DATA_PATH)
+        print(f"Loaded {len(X)} samples, {np.sum(y)} fraudulent")
+
+    # Split for validation to enable early stopping
+    from sklearn.model_selection import train_test_split
+    X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.1, random_state=42)
     
-    print("Training XGBoost model...")
+    print("Training XGBoost model (with Overfit Protection)...")
     
     model = xgb.XGBClassifier(
-        n_estimators=100,
-        max_depth=6,
-        learning_rate=0.1,
+        n_estimators=500,        # Higher estimators with early stopping
+        max_depth=4,             # PREVENT OVERFITTING: shallower trees
+        learning_rate=0.05,      # Smaller learning rate for better generalization
+        gamma=1.0,               # PREVENT OVERFITTING: min loss reduction
+        reg_lambda=2.0,          # PREVENT OVERFITTING: L2 regularization
+        reg_alpha=0.5,           # PREVENT OVERFITTING: L1 regularization
         scale_pos_weight=len(y_train[y_train==0]) / max(1, len(y_train[y_train==1])),
         use_label_encoder=False,
         eval_metric='logloss',
+        early_stopping_rounds=15, # MOVED TO CONSTRUCTOR
         random_state=42
     )
-    model.fit(X_train, y_train)
+    
+    model.fit(
+        X_train, y_train,
+        eval_set=[(X_val, y_val)],
+        verbose=False
+    )
     
     joblib.dump(model, MODEL_PATH)
-    print(f"Model saved to {MODEL_PATH}")
+    print(f"Regularized model saved to {MODEL_PATH}")
 
 
 class XGBRiskEngine:
@@ -177,20 +190,21 @@ class XGBRiskEngine:
         except:
             hour = 12
         
-        features[0, 0] = np.random.uniform(0.1, 0.9)
+        # --- DETERMINISTIC FEATURES (No random noise) ---
+        features[0, 0] = (amount % 100) / 100.0
         features[0, 1] = min(amount / 20000.0, 1.0)
         features[0, 2] = 0.9 if state in high_risk_states else 0.3
-        features[0, 3] = (age * 365) / 20000.0
-        features[0, 4] = np.random.uniform(0.1, 0.9)
+        features[0, 3] = (age * 365.25) / 20000.0
+        features[0, 4] = 0.7 if (hour < 6 or hour > 22) else 0.2
         features[0, 5] = 0.9 if merchant in high_risk_merchants else 0.3
         features[0, 6] = device_risk_map.get(device, 0.3)
         features[0, 7] = 0.8 if hour >= 0 and hour < 6 else 0.3
         features[0, 8] = 0.3
-        features[0, 9] = min(balance / (amount + 1), 10) / 10.0
+        features[0, 9] = min(balance / (amount + 1.0), 10) / 10.0
         features[0, 10] = 0.8 if age < 25 or age > 60 else 0.3
         features[0, 11] = 0.9 if state in high_risk_states else 0.3
         features[0, 12] = hour / 24.0
-        features[0, 13] = 0.0
+        features[0, 13] = 0.0 # Placeholder for is_weekend if not in dict
         features[0, 14] = 1.0 if amount > 10000 else 0.0
         
         assert self._model is not None
@@ -201,12 +215,12 @@ class XGBRiskEngine:
         ml_indicators = transaction_dict.get("money_laundering_indicators", "")
         if isinstance(ml_indicators, str) and len(ml_indicators) > 5:
             # If explicit indicators are provided (from SAR CSV), boost risk score
-            if "high_value" in ml_indicators.lower() or "offshore" in ml_indicators.lower() or "rapid" in ml_indicators.lower():
-                risk_score = max(risk_score, 0.90)  # RED
+            if any(k in ml_indicators.lower() for k in ["high_value", "offshore", "rapid", "structuring"]):
+                risk_score = max(risk_score, 0.92)  # High Confidence RED
             else:
-                risk_score = max(risk_score, 0.70)  # AMBER
+                risk_score = max(risk_score, 0.75)  # AMBER
         elif float(amount) > 50000:
-            risk_score = max(risk_score, 0.65)  # AMBER fallback for high amount without indicators
+            risk_score = max(risk_score, 0.70)  # AMBER fallback for high amount
 
         assert self._explainer is not None
         shap_vals = self._explainer.shap_values(features)

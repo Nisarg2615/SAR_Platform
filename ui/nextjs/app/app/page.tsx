@@ -37,9 +37,26 @@ export default function Dashboard() {
           <h1 style={{ fontSize: 24, fontWeight: 700, color: '#fff', marginBottom: 4 }}>Dashboard</h1>
           <p style={{ fontSize: 13, color: '#52525b' }}>AI-powered SAR pipeline · FIU-IND STR · XGBoost + Groq</p>
         </div>
-        <button onClick={load} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#111', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 8, color: '#71717a', fontSize: 12, padding: '7px 12px', cursor: 'pointer' }}>
-          <RefreshCw style={{ width: 13, height: 13 }} /> Refresh
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button 
+            onClick={() => {
+              setLoading(true);
+              sarApi.refreshPipeline(300).then(() => load()).catch(() => setLoading(false));
+            }}
+            disabled={loading}
+            style={{ 
+              display: 'flex', alignItems: 'center', gap: 6, 
+              background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', 
+              borderRadius: 8, color: '#3b82f6', fontSize: 12, padding: '7px 12px', 
+              cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1
+            }}
+          >
+            <Zap style={{ width: 13, height: 13 }} /> Load Batch (300)
+          </button>
+          <button onClick={load} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#111', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 8, color: '#71717a', fontSize: 12, padding: '7px 12px', cursor: 'pointer' }}>
+            <RefreshCw style={{ width: 13, height: 13 }} /> Refresh
+          </button>
+        </div>
       </div>
 
       {/* Metrics */}

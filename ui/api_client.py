@@ -45,3 +45,9 @@ def check_health() -> Optional[dict]:
 
 def simulate_scenario(scenario: str) -> Optional[dict]:
     return _safe_request("POST", f"/demo/simulate/{scenario}")
+
+def refresh_pipeline() -> Optional[dict]:
+    return _safe_request("POST", "/api/pipeline/refresh")
+
+def train_model() -> Optional[dict]:
+    return _safe_request("POST", "/api/model/train")

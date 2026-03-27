@@ -5,6 +5,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import streamlit as st
 import pandas as pd
 from ui import api_client, mock_data
+import importlib
+importlib.reload(api_client)
 
 st.set_page_config(page_title="SAR Platform", layout="wide")
 
@@ -19,6 +21,26 @@ if health:
 else:
     st.sidebar.warning("Backend offline — showing mock data")
     USE_MOCK = True
+
+st.sidebar.markdown("---")
+if st.sidebar.button("🚀 Refresh Full Pipeline", use_container_width=True, help="Clears DB and re-processes all CSV data"):
+    with st.spinner("Processing all transactions through 6-Agent Pipeline..."):
+        res = api_client.refresh_pipeline()
+        if res:
+            st.sidebar.success(f"Processed {res.get('total_cases', 0)} cases!")
+            st.rerun()
+        else:
+            st.sidebar.error("Refresh failed")
+
+if st.sidebar.button("🧠 Start Model Training", use_container_width=True, help="Trains the XGBoost model on 200k transactions"):
+    with st.spinner("Training XGBoost (Overfit Protection Active)..."):
+        res = api_client.train_model()
+        if res:
+            st.sidebar.success("Model Trained Successfully!")
+        else:
+            st.sidebar.error("Training failed")
+
+st.sidebar.markdown("---")
 
 
 def get_all_cases():

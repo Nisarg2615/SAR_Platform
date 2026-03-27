@@ -222,4 +222,6 @@ export const sarApi = {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.blob();
   },
+  refreshPipeline: (limit?: number) => api<{ status: string; message: string; total_cases: number }>(`/api/pipeline/refresh${limit ? `?limit=${limit}` : ''}`, { method: 'POST' }),
+  trainModel: () => api<{ status: string; message: string }>('/api/model/train', { method: 'POST' }),
 };

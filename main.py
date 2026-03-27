@@ -18,6 +18,7 @@ from agents.shared.schemas import SARCase, SARStatus
 from agents.pipeline import app as pipeline_app
 from agents.agent3_narrative.node import agent3_generate_narrative
 from agents.agent6_review.node import agent6_review
+from prediction_engine.model import train_and_save_model
 from prediction_engine.simulator import (
     get_structuring_scenario,
     get_layering_scenario,
@@ -114,6 +115,16 @@ async def health_check():
             "agent_routing": agent_routing
         }
     }
+
+
+@app.post("/api/model/train")
+async def trigger_training():
+    """Manually triggers the XGBoost model training."""
+    try:
+        train_and_save_model()
+        return {"status": "success", "message": "XGBoost model trained and saved successfully."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={"error": "Model training failed", "detail": str(e)})
 
 
 
@@ -467,31 +478,77 @@ async def get_case_graph_endpoint(case_id: str):
 
 
 # ---------------------------------------------------------------------------
-# Demo simulation endpoints
+# Pipeline Refresh (Live Data Reload)
 # ---------------------------------------------------------------------------
 
-@app.post("/demo/simulate/{scenario}")
-async def simulate_scenario(scenario: str):
+@app.post("/api/pipeline/refresh")
+async def refresh_pipeline(limit: int = 300):
     """
-    Demo endpoint: generates a raw transaction for a scenario and submits it.
-    Options: structuring, layering, smurfing
+    1. Clears current in-memory DB and disk mock_db.json.
+    2. Reloads the SAR CSV and a sample of the Fraud CSV.
+    3. Re-runs the entire 6-Agent LangGraph for each transaction.
     """
-    scenario_map = {
-        "structuring": get_structuring_scenario,
-        "layering": get_layering_scenario,
-        "smurfing": get_smurfing_scenario,
-    }
+    global DB
+    DB.clear()
+    
+    # Clear physical disk DB
+    if os.path.exists("mock_db.json"):
+        os.remove("mock_db.json")
+    if os.path.exists("data/batch_results.json"):
+        os.remove("data/batch_results.json")
 
-    if scenario not in scenario_map:
-        raise HTTPException(status_code=400, detail=f"Invalid scenario. Choose from: {list(scenario_map.keys())}")
+    SAR_CSV = "suspicious-activity-reports-sar.csv"
+    FRAUD_CSV = "Bank_Transaction_Fraud_Detection.csv"
+    
+    processed_count = 0
+    sar_limit = limit // 2
+    fraud_limit = limit - sar_limit
+    
+    # 1. Process SAR Dataset (Priority)
+    if os.path.exists(SAR_CSV):
+        try:
+            import pandas as pd
+            df_sar = pd.read_csv(SAR_CSV).head(sar_limit) 
+            for _, row in df_sar.iterrows():
+                tx_payload = row.to_dict()
+                case_id = f"CASE-SAR-{uuid.uuid4().hex[:4].upper()}"
+                case = SARCase(case_id=case_id, status=SARStatus.PENDING, raw_transaction=tx_payload)
+                DB[case_id] = case
+                # Run pipeline
+                input_dict = case.model_dump()
+                final_state = await pipeline_app.ainvoke(input_dict)
+                DB[case_id] = SARCase(**final_state)
+                DB[case_id].status = SARStatus.IN_REVIEW
+                processed_count += 1
+        except Exception as e:
+            print(f"Error refreshing SAR data: {e}")
 
-    tx_payload = scenario_map[scenario]()
-    result = await submit_transaction(tx_payload)
+    # 2. Process Fraud Dataset Sample
+    if os.path.exists(FRAUD_CSV):
+        try:
+            import pandas as pd
+            df_fraud = pd.read_csv(FRAUD_CSV).head(fraud_limit)
+            for _, row in df_fraud.iterrows():
+                tx_payload = row.to_dict()
+                case_id = f"CASE-FRD-{uuid.uuid4().hex[:4].upper()}"
+                case = SARCase(case_id=case_id, status=SARStatus.PENDING, raw_transaction=tx_payload)
+                DB[case_id] = case
+                # Run pipeline
+                input_dict = case.model_dump()
+                final_state = await pipeline_app.ainvoke(input_dict)
+                DB[case_id] = SARCase(**final_state)
+                DB[case_id].status = SARStatus.IN_REVIEW
+                processed_count += 1
+        except Exception as e:
+            print(f"Error refreshing Fraud data: {e}")
 
+    # Persist the fresh start
+    persist_db_to_disk()
+    
     return {
-        "case_id": result["case_id"],
-        "scenario_type": scenario,
-        "raw_transaction": tx_payload
+        "status": "success",
+        "message": f"Successfully cleared DB and re-processed {processed_count} cases.",
+        "total_cases": len(DB)
     }
 
 
