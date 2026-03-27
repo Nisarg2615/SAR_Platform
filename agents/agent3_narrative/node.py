@@ -13,6 +13,7 @@ from agents.shared.schemas import (
     Part7SuspicionDetails, Part8ActionTaken
 )
 from agents.llm.client import llm_call
+from agents.pii_stripper import pii_stripper
 from agents.agent3_narrative.prompts import SYSTEM_PROMPT, build_user_prompt
 from agents.agent3_narrative.fallback import generate_fallback_narrative
 
@@ -23,9 +24,15 @@ async def agent3_generate_narrative(state: SARCase) -> SARCase:
         model     = directive.model    if directive else "gemini-2.5-flash"
         fallback_chain = [p.value for p in directive.fallback_chain] if directive else []
 
+        user_prompt = build_user_prompt(state)
+        
+        # PII Stripping Pre-Flight
+        strip_result = pii_stripper.strip_and_tokenize(user_prompt)
+        pii_stripper.generate_audit_entry(strip_result, state.case_id)
+
         raw_text, provider_used = await llm_call(
             system_prompt=SYSTEM_PROMPT,
-            user_prompt=build_user_prompt(state),
+            user_prompt=strip_result.stripped_prompt,
             provider=provider,
             model=model,
             fallback_chain=fallback_chain,
@@ -34,6 +41,9 @@ async def agent3_generate_narrative(state: SARCase) -> SARCase:
         if not raw_text:
             raw_text = generate_fallback_narrative(state)
             provider_used  = "template_fallback"
+        else:
+            # PII Re-insertion Post-Flight
+            raw_text = pii_stripper.reinsert_pii(raw_text, strip_result.token_map)
             
         # Clean JSON markdown blocks
         if "```json" in raw_text:

@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, FileText, Play, Shield, ExternalLink, Network, Tag, ClipboardList } from 'lucide-react';
 
+import { useZeroTrustSession } from './ZeroTrustGate';
+
 const NAV = [
   { href: '/app', icon: LayoutDashboard, label: 'Dashboard', exact: true },
   { href: '/app/cases', icon: FileText, label: 'All Cases' },
@@ -31,6 +33,7 @@ function BackendPill() {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const session = useZeroTrustSession();
   const isActive = (href: string, exact?: boolean) =>
     exact ? pathname === href : pathname === href || pathname.startsWith(href + '/');
 
@@ -50,6 +53,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         </div>
+
+        {/* User Session */}
+        {session && (
+          <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#e4e4e7', marginBottom: 2 }}>{session.name}</div>
+            <div style={{ fontSize: 10, color: '#a78bfa', fontFamily: 'monospace', background: 'rgba(167,139,250,0.1)', padding: '2px 6px', borderRadius: 4, width: 'fit-content' }}>
+              {session.role}
+            </div>
+          </div>
+        )}
 
         {/* Status */}
         <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
