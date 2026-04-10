@@ -1,6 +1,6 @@
 # 🏦 SAR Platform — AI-Powered Suspicious Activity Report Generator
 
-> An AI-powered, multi-agent pipeline that automatically generates regulator-ready Suspicious Activity Reports (SAR) for banks — built for a hackathon demo by a 4-person team.
+> An AI-powered, multi-agent pipeline that automatically generates regulator-ready Suspicious Activity Reports (SAR) for banks — built for a hackathon demo.
 
 [![Python](https://img.shields.io/badge/Python-3.11-blue)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115.4-green)](https://fastapi.tiangolo.com)
@@ -42,22 +42,17 @@ Output: Regulator-ready SAR document + immutable audit trail in Neo4j.
 
 ---
 
-## 👥 Team & Module Ownership
+## 👥 Module Architecture
 
-> [!IMPORTANT]
-> **Only work in your assigned modules. If you need to touch another person's module, ask them first on WhatsApp.** Unauthorized edits will be blocked at PR review.
+The system is modularized as follows to separate concerns cleanly:
 
-| Rank | Name | Role | Modules Owned |
-|---|---|---|---|
-| 1 — Tech Lead | **Ricky** | Backend + ML | `main.py`, `agents/pipeline.py`, `agents/agent1_ingestion/`, `agents/agent2_risk/`, `prediction_engine/` |
-| 2 — Senior | **Nisarg** | AI + Graph | `agents/agent3_narrative/`, `agents/agent4_compliance/`, `agents/agent5_audit/`, `graph/neo4j/` |
-| 3 | **Anshul** | UI + Review | `agents/agent6_review/`, `ui/nextjs/` |
-| 4 — Junior | **Ashwin** | Infra + Tests | `infra/`, `docker-compose.yml`, `tests/` |
+- **Backend & ML Engine**: `main.py`, `agents/pipeline.py`, `agents/agent1_ingestion/`, `agents/agent2_risk/`, `prediction_engine/`
+- **AI & Graph Logging**: `agents/agent3_narrative/`, `agents/agent4_compliance/`, `agents/agent5_audit/`, `graph/neo4j/`
+- **UI & Human Review**: `agents/agent6_review/`, `ui/nextjs/`
+- **Infrastructure & Tests**: `infra/`, `docker-compose.yml`, `tests/`
 
-**Shared files** (all 4 must agree before editing):
-- `agents/shared/schemas.py` — Pydantic contracts between all agents
-- `requirements.txt`
-- `MASTER_CONTEXT.md`
+**Shared Contracts**:
+- `agents/shared/schemas.py` — Complete Pydantic contracts passed between all LangGraph agents
 
 ---
 
@@ -66,18 +61,18 @@ Output: Regulator-ready SAR document + immutable audit trail in Neo4j.
 | Layer | Technology | Notes |
 |---|---|---|
 | Runtime | Python 3.11 | Use exactly 3.11 |
-| API | FastAPI 0.115.4 + uvicorn | Ricky owns |
-| AI Pipeline | LangGraph 0.2.45 + LangChain 0.3.7 | Nisarg + Ricky |
+| API | FastAPI 0.115.4 + uvicorn | REST APIs |
+| AI Pipeline | LangGraph 0.2.45 + LangChain 0.3.7 | Stateful multi-agent flow |
 | **LLM** | **Groq API (Llama 3 8B)** | **GROQ_API_KEY needed** |
 | Data Models | Pydantic v2 (2.9.2) | BaseModel everywhere |
-| Graph DB | Neo4j 5.14 Enterprise | Nisarg owns |
-| Relational DB | PostgreSQL 16 | In-memory for demo |
+| Graph DB | Neo4j 5.14 Enterprise | Local audit trace |
+| Relational DB | PostgreSQL 16 | Relational store DB |
 | Cache | Redis 7 | Started by Docker |
 | Vector Store | Weaviate 1.24 | Started by Docker |
-| Streaming | Kafka 3.6 | Mocked by simulator |
-| ML | XGBoost + scikit-learn + SHAP | Ricky owns |
-| Frontend | Next.js 14/16 (App Router) + Tailwind | Anshul owns |
-| Containers | Docker Compose | Ashwin owns |
+| Streaming | Kafka 3.6 | Mocked streaming layer |
+| ML | XGBoost + scikit-learn + SHAP | Risk prediction models |
+| Frontend | Next.js 14/16 (App Router) + Tailwind | Frontend Dashboard |
+| Containers | Docker Compose | Infrastructure orchestrator |
 
 ---
 
@@ -105,8 +100,8 @@ git --version   # already installed on most machines
 ### Step 1 — Clone the repo
 
 ```bash
-git clone https://github.com/Rickykapoor/Sar-platform.git
-cd Sar-platform
+git clone https://github.com/Nisarg2615/SAR_Platform.git
+cd SAR_Platform
 ```
 
 ### Step 2 — Create virtual environment
@@ -226,7 +221,7 @@ pytest tests/ -v
 python -m mypy agents/
 ```
 
-All tests should pass. If a test fails before you've written any code, tell Ricky.
+All tests should pass. Ensure you have a green test suite before making new changes.
 
 ---
 
