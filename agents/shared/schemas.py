@@ -296,6 +296,7 @@ class ProviderName(str, Enum):
     GEMINI     = "gemini"
     MISTRAL    = "mistral"
     CEREBRAS   = "cerebras"
+    LOCAL_MISTRAL = "local_mistral"
     FALLBACK   = "template_fallback"
 
 class LLMRoutingDirective(BaseModel):

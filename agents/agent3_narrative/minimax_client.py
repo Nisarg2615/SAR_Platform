@@ -1,7 +1,7 @@
 """
 Agent 3 — Narrative Generation
 LLM client with 3-tier fallback chain:
-  1. Groq API (free — llama3-8b-8192) — if GROQ_API_KEY is set
+    1. Groq API (free — llama-3.1-8b-instant) — if GROQ_API_KEY is set
   2. OpenCode local proxy (MiniMax-Text-2.5) — fallback
   3. Template-based fallback — always works, no LLM needed
 """
@@ -19,14 +19,14 @@ if TYPE_CHECKING:
 
 _GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 _GROQ_BASE_URL = "https://api.groq.com/openai/v1"
-_GROQ_MODEL = "llama3-8b-8192"
+_GROQ_MODEL = "llama-3.1-8b-instant"
 
 _OPENCODE_BASE_URL = "http://localhost:4000/v1"
 _OPENCODE_MODEL = "minimax/MiniMax-Text-2.5"
 
 
 async def _call_groq(state: "SARCase") -> str:
-    """Call Groq API (free tier — llama3-8b-8192)."""
+    """Call Groq API (free tier — llama-3.1-8b-instant)."""
     client = openai.AsyncOpenAI(base_url=_GROQ_BASE_URL, api_key=_GROQ_API_KEY)
     response = await client.chat.completions.create(
         model=_GROQ_MODEL,

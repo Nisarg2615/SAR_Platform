@@ -7,7 +7,7 @@ LLM_CONFIG = {
     "max_tokens": 900,
     "providers": {
         "groq": {
-            "model": "llama3-8b-8192",
+            "model": "llama-3.1-8b-instant",
             "base_url": "https://api.groq.com/openai/v1",
             "api_key_env": "GROQ_API_KEY"
         },

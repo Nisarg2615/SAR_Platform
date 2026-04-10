@@ -31,6 +31,14 @@ def pick_provider(agent_name: str) -> LLMRoutingDirective | None:
         if not cfg:
             continue
             
+        requires_key = cfg.get("requires_api_key", True)
+        if requires_key:
+            import os
+            api_key = os.getenv(cfg.get("api_key_env", ""), "")
+            if not api_key:
+                logging.info(f"[Router] Skipping {provider_name} — no API key configured")
+                continue
+
         model = cfg["models"].get(size) or cfg["models"].get("small") or list(cfg["models"].values())[0]
 
         reason = "primary" if provider_name == primary else f"fallback (primary={primary} unavailable)"

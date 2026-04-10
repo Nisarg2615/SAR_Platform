@@ -6,7 +6,7 @@ PROVIDER_CONFIGS = {
         "api_key_env": "GROQ_API_KEY",
         "models": {
             "large": "llama-3.3-70b-versatile",
-            "small": "llama3-8b-8192",
+            "small": "llama-3.1-8b-instant",
         },
         "rpm_limit": 30,
         "rpd_limit": 1000,
@@ -40,10 +40,21 @@ PROVIDER_CONFIGS = {
         "rpm_limit": 30,
         "rpd_limit": 14400,
     },
+    "local_mistral": {
+        "base_url": "http://localhost:11434/v1",
+        "api_key_env": "",
+        "requires_api_key": False,
+        "models": {
+            "large": "mistral",
+            "small": "mistral",
+        },
+        "rpm_limit": 600,
+        "rpd_limit": 100000,
+    },
 }
 
 # Global fallback chain — orchestrator tries these in order on primary failure
-FALLBACK_CHAIN = ["groq", "cerebras", "mistral"]
+FALLBACK_CHAIN = ["groq", "cerebras", "mistral", "local_mistral"]
 
 # Per-agent primary provider assignment
 AGENT_PRIMARY_PROVIDER = {
